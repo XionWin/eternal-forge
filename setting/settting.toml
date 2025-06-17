@@ -1,0 +1,9 @@
+[[sacred-gate]]
+ip_address = "[::0]"
+port = 52020
+
+[[arcane-vault]]
+ip_address = "192.168.0.208"
+username = "postgres"
+password = "wenxuan815"
+database_name = "warehouse"
