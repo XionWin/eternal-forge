@@ -54,10 +54,10 @@ impl DbContext {
 async fn create_db_client() -> Result<tokio_postgres::Client, Error> {
     let config = ethereal_core::configuration::TomlConfiguration::get_config("setting/Config.toml");
 
-    let ip_address = config.get::<String>("database[0].ip_address").unwrap();
-    let username = config.get::<String>("database[0].username").unwrap();
-    let password = config.get::<String>("database[0].password").unwrap();
-    let database_name = config.get::<String>("database[0].database_name").unwrap();
+    let ip_address = config.get::<String>("arcane-vault[0].ip_address").unwrap();
+    let username = config.get::<String>("arcane-vault[0].username").unwrap();
+    let password = config.get::<String>("arcane-vault[0].password").unwrap();
+    let database_name = config.get::<String>("arcane-vault[0].database_name").unwrap();
 
     let (client, connection) = tokio_postgres::connect(
         &format!(
