@@ -38,8 +38,10 @@ version = "0.1.0"
 dependencies = [
  "ethereal-core",
  "lazy_static",
+ "prost-types",
  "tokio",
  "tokio-postgres",
+ "uuid",
 ]
 
 [[package]]
@@ -1246,6 +1248,10 @@ dependencies = [
  "libc",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "sorcerers-kit"
+version = "0.1.0"
 
 [[package]]
 name = "stringprep"

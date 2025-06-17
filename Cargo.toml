@@ -4,4 +4,4 @@ members = [
     "sacred-gate",
     "ethereal-core",
     "arcane-vault"
-]
+, "sorcerers-kit"]
