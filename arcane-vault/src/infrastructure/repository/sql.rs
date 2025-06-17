@@ -1,7 +1,0 @@
-pub(crate) const QUERY_USER_PROFILE_BY_ID: &str = "SELECT id, open_id, union_id, nick_name, gender, language, city, province, country, avatar_url, signature, raw_data, encryption_data, iv, created_at, updated_at, status, role FROM user_profiles where id = $1 LIMIT 1";
-pub(crate) const QUERY_USER_PROFILE_BY_OPEN_ID: &str = "SELECT id, open_id, union_id, nick_name, gender, language, city, province, country, avatar_url, signature, raw_data, encryption_data, iv, created_at, updated_at, status, role FROM user_profiles where open_id = $1 LIMIT 1";
-pub(crate) const QUERY_USER_PROFILE_BY_UNION_ID: &str = "SELECT id, open_id, union_id, nick_name, gender, language, city, province, country, avatar_url, signature, raw_data, encryption_data, iv, created_at, updated_at, status, role FROM user_profiles where union_id = $1 LIMIT 1";
-
-pub(crate) const INSERT_USER_PROFILE: &str = "INSERT INTO user_profiles (open_id, union_id, nick_name, gender, language, city, province, country, avatar_url, signature, raw_data, encryption_data, iv) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *";
-
-pub(crate) const INSERT_WECHAT_ORDER: &str = "INSERT INTO wechat_orders ( wechat_order_id, open_id, app_id, mch_id, prepay_id, total_fee, body, notify_url ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *";

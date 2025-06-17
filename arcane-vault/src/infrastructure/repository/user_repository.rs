@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_postgres::Client;
 
 use ethereal_core::proto::User;
 
@@ -17,10 +16,10 @@ impl UserRepository {
     }
 
     pub async fn query_user_by_id(
-        client: &Client,
+        &self,
         value: &(dyn tokio_postgres::types::ToSql + Sync),
     ) -> Result<User, DbError> {
-        let row = client
+        let row = self.client.lock().await
             .query_one(
                 "SELECT id, created_at, updated_at, status, role, encryption_data FROM user_profiles where id = $1 LIMIT 1",
                 &[value],

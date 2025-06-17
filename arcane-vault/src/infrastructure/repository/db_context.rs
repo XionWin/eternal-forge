@@ -31,11 +31,11 @@ impl From<tokio_postgres::Error> for DbError {
 }
 
 #[derive(Debug)]
-pub struct Database {
+pub struct DbContext {
     client: Arc<Mutex<tokio_postgres::Client>>,
 }
 
-impl Database {
+impl DbContext {
     pub async fn new() -> Result<Self, Error> {
         Ok(Self {
             client: Arc::new(Mutex::new(create_db_client().await?)),
@@ -51,7 +51,7 @@ impl Database {
     }
 }
 
-pub async fn create_db_client() -> Result<tokio_postgres::Client, Error> {
+async fn create_db_client() -> Result<tokio_postgres::Client, Error> {
     let config = ethereal_core::configuration::TomlConfiguration::get_config("setting/Config.toml");
 
     let ip_address = config.get::<String>("database[0].ip_address").unwrap();
