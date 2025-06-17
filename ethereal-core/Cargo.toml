@@ -1,0 +1,13 @@
+[package]
+name = "ethereal-core"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+[dependencies]
+tonic = "0.13.1"
+prost = "0.13.5"
+prost-types = "0.13.5"
+
+[build-dependencies]
+tonic-build = { version = "0.13.1", features = ["prost"] }

@@ -1,0 +1,7 @@
+[package]
+name = "arcane-vault"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ethereal-core = { path = "../ethereal-core" }

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package user;
+
+message GetUserByIdRequest {
+  string id = 1;
+}
+
+service UserService {
+  rpc GetUserById (GetUserByIdRequest) returns (User);
+}
+
+/* User Profile */
+message User {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  int32 status = 4;
+  int32 role = 5;
+  string encryption_data = 6;
+}
+
+message Users {
+  repeated User users = 1;
+}
