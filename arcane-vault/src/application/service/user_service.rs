@@ -1,4 +1,5 @@
 use ethereal_core::proto::User;
+use uuid::Uuid;
 
 use crate::infrastructure::repository::{DbContext, DbError};
 
@@ -12,8 +13,8 @@ impl UserService {
     }
     pub async fn query_user_by_id(
         &self,
-        id: &str,
+        uuid: &Uuid,
     ) -> Result<User, DbError> {
-        self.db_context.get_user_repository().await.query_user_by_id(&id).await
+        self.db_context.get_user_repository().await.query_user_by_id(uuid).await
     }
 }

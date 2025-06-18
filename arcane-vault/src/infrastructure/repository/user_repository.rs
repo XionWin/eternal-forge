@@ -21,7 +21,7 @@ impl UserRepository {
     ) -> Result<User, DbError> {
         let row = self.client.lock().await
             .query_one(
-                "SELECT id, created_at, updated_at, status, role, encryption_data FROM user_profiles where id = $1 LIMIT 1",
+                "SELECT id, created_at, updated_at, status, role, encryption_data FROM \"user\" where id = $1 LIMIT 1",
                 &[value],
             )
             .await?;
