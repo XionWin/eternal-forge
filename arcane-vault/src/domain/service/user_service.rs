@@ -5,7 +5,7 @@ use crate::domain::error::ArcaneVaultError;
 
 
 #[async_trait::async_trait]
-pub trait UserService {
+pub trait UserService: Sync + Send {
     async fn query_user_by_id(
         &self,
         uuid: &Uuid,

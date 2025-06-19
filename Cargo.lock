@@ -1162,6 +1162,7 @@ dependencies = [
  "ethereal-core",
  "serde_json",
  "tokio",
+ "tonic",
  "uuid",
 ]
 

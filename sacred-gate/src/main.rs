@@ -1,3 +1,5 @@
+mod domain;
+
 #[tokio::main]
 async fn main() {
     let r = ethereal_core::proto::GetUserByIdRequest {
