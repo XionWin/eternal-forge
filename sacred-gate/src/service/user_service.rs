@@ -19,15 +19,20 @@ impl ethereal_core::proto::user_service_server::UserService for UserService {
         request: tonic::Request<GetUserByIdRequest>,
     ) -> std::result::Result<tonic::Response<User>, tonic::Status> {
         let request_id = request.into_inner().id;
-        let uuid = request_id
-            .parse::<uuid::Uuid>()
-            .expect("request id is not a validated uuid");
-        let result = self.valut_user_service.query_user_by_id(&uuid).await;
-        match result {
-            Ok(user) => Ok(tonic::Response::new(user)),
+        match request_id.parse::<uuid::Uuid>() {
+            Ok(uuid) => {
+                let result = self.valut_user_service.query_user_by_id(&uuid).await;
+                match result {
+                    Ok(user) => Ok(tonic::Response::new(user)),
+                    Err(err) => Err(tonic::Status::new(
+                        tonic::Code::Internal,
+                        format!("get user failed, error: {:?}", err),
+                    )),
+                }
+            }
             Err(err) => Err(tonic::Status::new(
                 tonic::Code::Internal,
-                format!("get user failed, error: {:?}", err),
+                format!("id is not a validated uuid, error: {:?}", err),
             )),
         }
     }
