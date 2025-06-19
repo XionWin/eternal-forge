@@ -3,18 +3,18 @@ use uuid::Uuid;
 
 use crate::{domain::error::ArcaneVaultError, infrastructure::repository::DbContext};
 
-pub struct UserService {
+pub struct UserServiceApp {
     db_context: DbContext
 }
 
-impl UserService {
+impl UserServiceApp {
     pub async fn new() -> Box<dyn crate::domain::service::UserService> {
         Box::new(Self { db_context: DbContext::new().await.expect("Create db_context failed") })
     }
 }
 
 #[async_trait::async_trait]
-impl crate::domain::service::UserService for UserService {
+impl crate::domain::service::UserService for UserServiceApp {
     async fn query_user_by_id(
         &self,
         uuid: &Uuid,
