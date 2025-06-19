@@ -3,8 +3,7 @@ use tokio::sync::Mutex;
 
 use tokio_postgres::{Error, NoTls};
 
-use super::Repository;
-
+use crate::infrastructure::repository::Repository;
 
 #[derive(Debug)]
 pub struct DbContext {
