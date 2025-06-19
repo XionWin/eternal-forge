@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 
 use tokio_postgres::{Error, NoTls};
 
-use super::UserRepository;
+use super::Repository;
 
 #[derive(Debug)]
 pub struct DbError {
@@ -42,12 +42,12 @@ impl DbContext {
         })
     }
 
-    pub async fn get_client(&self) -> Arc<Mutex<tokio_postgres::Client>> {
-        self.client.clone()
+    pub async fn get_repository(&self) -> Repository {
+        Repository::new(self.get_client().await)
     }
 
-    pub async fn get_user_repository(&self) -> UserRepository {
-        UserRepository::new(self.get_client().await)
+    async fn get_client(&self) -> Arc<Mutex<tokio_postgres::Client>> {
+        self.client.clone()
     }
 }
 

@@ -6,23 +6,24 @@ use ethereal_core::proto::User;
 use super::db_context::DbError;
 
 #[derive(Debug)]
-pub struct UserRepository {
+pub struct Repository {
     client: Arc<Mutex<tokio_postgres::Client>>,
 }
 
-impl UserRepository {
+impl Repository {
     pub fn new(client: Arc<Mutex<tokio_postgres::Client>>) -> Self {
         Self { client }
     }
 
-    pub async fn query_user_by_id(
+    pub async fn query_one(
         &self,
-        value: &(dyn tokio_postgres::types::ToSql + Sync),
+        statement: &str,
+        params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
     ) -> Result<User, DbError> {
         let row = self.client.lock().await
             .query_one(
-                "SELECT id, created_at, updated_at, status, role, encryption_data FROM \"user\" where id = $1 LIMIT 1",
-                &[value],
+                statement,
+                params,
             )
             .await?;
 

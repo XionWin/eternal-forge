@@ -15,6 +15,7 @@ impl UserService {
         &self,
         uuid: &Uuid,
     ) -> Result<User, DbError> {
-        self.db_context.get_user_repository().await.query_user_by_id(uuid).await
+        let sql_statement = "SELECT id, created_at, updated_at, status, role, encryption_data FROM \"user\" where id = $1 LIMIT 1";
+        self.db_context.get_repository().await.query_one(sql_statement, &[&uuid]).await
     }
 }
