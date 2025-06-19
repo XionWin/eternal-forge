@@ -6,4 +6,4 @@ port = 5001
 ip_address = "192.168.0.37"
 username = "postgres"
 password = "wenxuan815"
-database_name = "med_sync"
+database_name = "ms"
