@@ -1,4 +1,3 @@
-use tokio_postgres::error::DbError;
 #[derive(Debug)]
 pub struct ArcaneVaultError {
     pub message: String,
@@ -17,11 +16,14 @@ impl std::fmt::Display for ArcaneVaultError {
 
 impl std::error::Error for ArcaneVaultError {}
 
-impl From<DbError> for ArcaneVaultError {
-    fn from(err: DbError) -> Self {
+impl From<tokio_postgres::Error> for ArcaneVaultError {
+    fn from(err: tokio_postgres::Error) -> Self {
         ArcaneVaultError {
-            message: err.message().to_string(),
-            code: Some(err.code().code().to_string()),
+            message: format!("{}", err),
+            code: match err.code() {
+                Some(code) => Some(format!("{:?}", code)),
+                None => None,
+            }
         }
     }
 }

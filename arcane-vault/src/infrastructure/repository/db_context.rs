@@ -5,30 +5,6 @@ use tokio_postgres::{Error, NoTls};
 
 use super::Repository;
 
-#[derive(Debug)]
-pub struct DbError {
-    details: String,
-}
-
-impl DbError {
-    fn new(msg: &str) -> DbError {
-        DbError {
-            details: msg.to_string(),
-        }
-    }
-}
-
-impl std::fmt::Display for DbError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CustomError: {}", self.details)
-    }
-}
-
-impl From<tokio_postgres::Error> for DbError {
-    fn from(value: tokio_postgres::Error) -> Self {
-        Self::new(&format!("Tokio Postgres Error: {}", value))
-    }
-}
 
 #[derive(Debug)]
 pub struct DbContext {

@@ -3,7 +3,7 @@ use tokio::sync::Mutex;
 
 use ethereal_core::proto::User;
 
-use super::db_context::DbError;
+use crate::domain::error::ArcaneVaultError;
 
 #[derive(Debug)]
 pub struct Repository {
@@ -19,7 +19,7 @@ impl Repository {
         &self,
         statement: &str,
         params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
-    ) -> Result<User, DbError> {
+    ) -> Result<User, ArcaneVaultError> {
         let row = self.client.lock().await
             .query_one(
                 statement,
