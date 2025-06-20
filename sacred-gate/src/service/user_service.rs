@@ -24,10 +24,7 @@ impl ethereal_core::proto::user_service_server::UserService for UserService {
                 let result = self.valut_user_service.query_user_by_id(&uuid).await;
                 match result {
                     Ok(user) => Ok(tonic::Response::new(user)),
-                    Err(err) => Err(tonic::Status::new(
-                        tonic::Code::Internal,
-                        format!("get user failed, error: {:?}", err),
-                    )),
+                    Err(err) => Err(err.into()),
                 }
             }
             Err(err) => Err(tonic::Status::new(
