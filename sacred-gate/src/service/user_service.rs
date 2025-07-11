@@ -6,7 +6,7 @@ pub struct UserService {
 
 impl UserService {
     pub async fn new() -> Self {
-        let valut_user_service = arcane_vault::UserServiceApp::new().await;
+        let valut_user_service = arcane_vault::UserApp::new().await;
         Self { valut_user_service }
     }
 }

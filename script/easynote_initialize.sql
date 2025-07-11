@@ -1,6 +1,6 @@
 SELECT func_create_user(
-	'123456',
     'wangli@email.com',
+	'123456',
     'Li',
     'Wang',
     1,

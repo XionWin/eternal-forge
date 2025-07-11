@@ -99,8 +99,8 @@ CREATE TABLE user_profiles (
 CREATE INDEX idx_user_profile_email_account ON user_profiles(email_account);
 
 CREATE OR REPLACE FUNCTION func_create_user(
-	p_password VARCHAR,
     p_email_account VARCHAR,
+	p_password VARCHAR,
     p_first_name VARCHAR,
     p_last_name VARCHAR,
     p_gender INTEGER,
