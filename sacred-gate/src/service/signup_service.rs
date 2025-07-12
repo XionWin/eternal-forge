@@ -6,7 +6,7 @@ pub struct SignupService {
 
 impl SignupService {
     pub async fn new() -> Self {
-        let valut_signup_service = arcane_vault::SignupApp::new().await;
+        let valut_signup_service = arcane_vault::SignupService::new().await;
         Self {
             valut_signup_service,
         }

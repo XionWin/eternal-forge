@@ -2,11 +2,11 @@ use uuid::Uuid;
 
 use crate::{domain::error::ArcaneVaultError, infrastructure::repository::DbContext};
 
-pub struct SignupApp {
+pub struct SignupService {
     db_context: DbContext,
 }
 
-impl SignupApp {
+impl SignupService {
     pub async fn new() -> Box<dyn crate::domain::service::SginupService> {
         Box::new(Self {
             db_context: DbContext::new().await.expect("Create db_context failed"),
@@ -15,7 +15,7 @@ impl SignupApp {
 }
 
 #[async_trait::async_trait]
-impl crate::domain::service::SginupService for SignupApp {
+impl crate::domain::service::SginupService for SignupService {
     async fn create_user(
         &self,
         email: &str,

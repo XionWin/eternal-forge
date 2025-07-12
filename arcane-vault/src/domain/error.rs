@@ -24,7 +24,7 @@ impl From<tokio_postgres::error::Error> for ArcaneVaultError {
             message: format!("{}", err),
             code: match err.code() {
                 Some(code) => Some(format!("{:?}", code)),
-                None => None,
+                None => Some("tokio postgres error".into()),
             },
         }
     }
@@ -40,7 +40,7 @@ impl From<CreatePoolError> for ArcaneVaultError {
     fn from(error: CreatePoolError) -> Self {
         Self {
             message: error.to_string(),
-            code: None,
+            code: Some("create pool error".into()),
         }
     }
 }
@@ -49,7 +49,7 @@ impl From<deadpool_postgres::PoolError> for ArcaneVaultError {
     fn from(error: deadpool_postgres::PoolError) -> Self {
         Self {
             message: error.to_string(),
-            code: None,
+            code: Some("deadpool postgres error".into()),
         }
     }
 }
