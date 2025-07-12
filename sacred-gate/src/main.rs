@@ -20,10 +20,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .register_encoded_file_descriptor_set(encoded_file_descriptor_set)
         .build_v1()?;
 
+    let signup_servicee = crate::service::SignupService::new().await;
     let user_service = crate::service::UserService::new().await;
 
     Server::builder()
         .add_service(reflection_service)
+        .add_service(
+            ethereal_core::proto::signup_service_server::SignupServiceServer::new(signup_servicee),
+        )
         .add_service(
             ethereal_core::proto::user_service_server::UserServiceServer::new(user_service),
         )

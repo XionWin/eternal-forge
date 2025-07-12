@@ -2,19 +2,21 @@ syntax = "proto3";
 
 package signup;
 
-message SignupRequest {
-  string email = 1;
-  string password = 2;
-  string first_name = 3;
-  string last_name = 4;
-  int32 gender = 5;
-  int32 locale = 6;
-}
 
 service SignupService {
-  rpc CreateUser (SignupRequest) returns (SignupResponse);
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
 }
 
-message SignupResponse {
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string firstname = 3;
+  string lastname = 4;
+  int32 gender = 5;
+  int32 locale = 6;
+  string avatar = 7;
+  string signature = 8;
+}
+message CreateUserResponse {
   string id = 1;
 }

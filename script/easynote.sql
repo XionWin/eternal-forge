@@ -41,7 +41,7 @@ INSERT INTO user_statuses (id, name, description) VALUES
 (4, 'Deleted', 'User account is deleted');
 
 CREATE TABLE locales (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id INTEGER PRIMARY KEY,
     language_code CHAR(2) NOT NULL,
     locale_code VARCHAR(10) NOT NULL UNIQUE,
     name_en VARCHAR(100) NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE locales (
 INSERT INTO locales (
     id, language_code, locale_code, name_en, native_name, is_rtl, enabled, created_at
 ) VALUES (
-    gen_random_uuid(),
+    1,
     'en',
     'en-US',
     'English (United States)',
@@ -63,7 +63,7 @@ INSERT INTO locales (
     NOW()
 ),
 (
-    gen_random_uuid(),
+    2,
     'zh',
     'zh-CN',
     'Chinese (Simplified)',
@@ -90,11 +90,12 @@ CREATE TABLE user_profiles (
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     gender INTEGER NOT NULL,
-    locale CHAR(5),
+    locale INTEGER NOT NULL,
     avatar VARCHAR(255),
     signature VARCHAR(255),
 	CONSTRAINT fk_id FOREIGN KEY (id) REFERENCES users(id),
-	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id)
+	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id),
+	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
 CREATE INDEX idx_user_profile_email_account ON user_profiles(email_account);
 
@@ -104,7 +105,7 @@ CREATE OR REPLACE FUNCTION func_create_user(
     p_first_name VARCHAR,
     p_last_name VARCHAR,
     p_gender INTEGER,
-    p_locale VARCHAR,
+    p_locale INTEGER,
     p_avatar VARCHAR,
     p_signature VARCHAR
 ) RETURNS UUID AS $$

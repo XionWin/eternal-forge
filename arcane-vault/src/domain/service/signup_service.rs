@@ -7,11 +7,11 @@ pub trait SginupService: Sync + Send {
         &self,
         email: &str,
         password: &str,
-        first_name: &str,
-        last_name: &str,
+        firstname: &str,
+        lastname: &str,
         gender: i32,
-        locale_code: &str,
-        avatar_url: &str,
+        locale: i32,
+        avatar: &str,
         signature: &str,
     ) -> Result<String, ArcaneVaultError>;
 }

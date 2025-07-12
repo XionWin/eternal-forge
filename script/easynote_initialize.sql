@@ -4,7 +4,7 @@ SELECT func_create_user(
     'Li',
     'Wang',
     1,
-    'zh-CN',
+    1,
     'https://example.com/avatar1.png',
     'Carpe diem.'
 );
