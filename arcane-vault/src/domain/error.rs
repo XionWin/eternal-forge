@@ -1,3 +1,5 @@
+use deadpool_postgres::CreatePoolError;
+
 #[derive(Debug)]
 pub struct ArcaneVaultError {
     pub message: String,
@@ -16,7 +18,7 @@ impl std::fmt::Display for ArcaneVaultError {
 
 impl std::error::Error for ArcaneVaultError {}
 
-impl From<tokio_postgres::Error> for ArcaneVaultError {
+impl From<tokio_postgres::error::Error> for ArcaneVaultError {
     fn from(err: tokio_postgres::Error) -> Self {
         ArcaneVaultError {
             message: format!("{}", err),
@@ -30,9 +32,24 @@ impl From<tokio_postgres::Error> for ArcaneVaultError {
 
 impl Into<tonic::Status> for ArcaneVaultError {
     fn into(self) -> tonic::Status {
-        tonic::Status::new(
-            tonic::Code::Internal,
-            format!("{:?}", self),
-        )
+        tonic::Status::new(tonic::Code::Internal, format!("{:?}", self))
+    }
+}
+
+impl From<CreatePoolError> for ArcaneVaultError {
+    fn from(error: CreatePoolError) -> Self {
+        Self {
+            message: error.to_string(),
+            code: None,
+        }
+    }
+}
+
+impl From<deadpool_postgres::PoolError> for ArcaneVaultError {
+    fn from(error: deadpool_postgres::PoolError) -> Self {
+        Self {
+            message: error.to_string(),
+            code: None,
+        }
     }
 }

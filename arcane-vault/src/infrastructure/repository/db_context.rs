@@ -1,32 +1,26 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use deadpool_postgres::{Pool, Runtime};
+use tokio_postgres::NoTls;
 
-use tokio_postgres::{Error, NoTls};
-
+use crate::domain::error::ArcaneVaultError;
 use crate::infrastructure::repository::Repository;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DbContext {
-    client: Arc<Mutex<tokio_postgres::Client>>,
+    pool: Pool,
 }
 
 impl DbContext {
-    pub async fn new() -> Result<Self, Error> {
-        Ok(Self {
-            client: Arc::new(Mutex::new(create_db_client().await?)),
-        })
+    pub async fn new() -> Result<Self, ArcaneVaultError> {
+        let pool = create_db_pool().await?;
+        Ok(Self { pool })
     }
 
     pub async fn get_repository(&self) -> Repository {
-        Repository::new(self.get_client().await)
-    }
-
-    async fn get_client(&self) -> Arc<Mutex<tokio_postgres::Client>> {
-        self.client.clone()
+        Repository::new(self.pool.clone())
     }
 }
 
-async fn create_db_client() -> Result<tokio_postgres::Client, Error> {
+async fn create_db_pool() -> Result<Pool, ArcaneVaultError> {
     let config = ethereal_core::configuration::TomlConfiguration::get_config("setting/Config.toml");
 
     let ip_address = config.get::<String>("arcane-vault[0].ip_address").unwrap();
@@ -34,16 +28,12 @@ async fn create_db_client() -> Result<tokio_postgres::Client, Error> {
     let password = config.get::<String>("arcane-vault[0].password").unwrap();
     let database_name = config.get::<String>("arcane-vault[0].database_name").unwrap();
 
-    let (client, connection) = tokio_postgres::connect(
-        &format!(
-            "host={} user={} password={} dbname={}",
-            &ip_address, &username, &password, &database_name
-        ),
-        NoTls,
-    )
-    .await?;
+    let mut cfg = deadpool_postgres::Config::new();
+    cfg.host = Some(ip_address);
+    cfg.user = Some(username);
+    cfg.password = Some(password);
+    cfg.dbname = Some(database_name);
 
-    tokio::spawn(async move { connection.await });
-
-    Ok(client)
+    cfg.create_pool(Some(Runtime::Tokio1), NoTls)
+        .map_err(ArcaneVaultError::from)
 }
