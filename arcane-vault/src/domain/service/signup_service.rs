@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::domain::error::ArcaneVaultError;
 
 
@@ -13,5 +15,5 @@ pub trait SginupService: Sync + Send {
         locale: i32,
         avatar: &str,
         signature: &str,
-    ) -> Result<String, ArcaneVaultError>;
+    ) -> Result<Uuid, ArcaneVaultError>;
 }

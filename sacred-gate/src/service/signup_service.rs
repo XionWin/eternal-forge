@@ -33,18 +33,13 @@ impl ethereal_core::proto::signup_service_server::SignupService for SignupServic
         let result = self
             .valut_signup_service
             .create_user(
-                &email,
-                &password,
-                &firstname,
-                &lastname,
-                gender,
-                locale,
-                &avatar,
-                &signature,
+                &email, &password, &firstname, &lastname, gender, locale, &avatar, &signature,
             )
             .await;
         match result {
-            Ok(user_id) => Ok(tonic::Response::new(CreateUserResponse { id: user_id })),
+            Ok(user_id) => Ok(tonic::Response::new(CreateUserResponse {
+                id: user_id.to_string(),
+            })),
             Err(err) => Err(err.into()),
         }
     }

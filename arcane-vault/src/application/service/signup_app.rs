@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::{domain::error::ArcaneVaultError, infrastructure::repository::DbContext};
 
 pub struct SignupApp {
@@ -24,7 +26,7 @@ impl crate::domain::service::SginupService for SignupApp {
         locale: i32,
         avatar: &str,
         signature: &str,
-    ) -> Result<String, ArcaneVaultError> {
+    ) -> Result<Uuid, ArcaneVaultError> {
         let sql_statement = r#"
             SELECT func_create_user(
                 $1, $2, $3, $4, $5, $6, $7, $8
@@ -54,7 +56,7 @@ impl crate::domain::service::SginupService for SignupApp {
     }
 }
 
-fn get_user_id_from_row(row: &tokio_postgres::Row) -> String {
-    let user_id: String = row.get("user_id");
+fn get_user_id_from_row(row: &tokio_postgres::Row) -> Uuid {
+    let user_id: Uuid = row.get("user_id");
     user_id
 }
