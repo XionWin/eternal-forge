@@ -1,13 +1,18 @@
-use ethereal_core::proto::User;
 use uuid::Uuid;
 
 use crate::domain::error::ArcaneVaultError;
 
-
 #[async_trait::async_trait]
 pub trait UserService: Sync + Send {
-    async fn query_user_by_id(
+    async fn create_user(
         &self,
-        uuid: &Uuid,
-    ) -> Result<User, ArcaneVaultError>;
+        email: &str,
+        password: &str,
+        firstname: &str,
+        lastname: &str,
+        gender: i32,
+        locale: i32,
+        avatar: &str,
+        signature: &str,
+    ) -> Result<Uuid, ArcaneVaultError>;
 }

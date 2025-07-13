@@ -75,6 +75,7 @@ INSERT INTO locales (
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email_account VARCHAR(255) NOT NULL UNIQUE,
 	password VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
@@ -83,10 +84,10 @@ CREATE TABLE users (
     CONSTRAINT fk_status FOREIGN KEY (status) REFERENCES user_statuses(id),
     CONSTRAINT fk_role FOREIGN KEY (role) REFERENCES roles(id)
 );
+CREATE INDEX idx_users_email_account ON users(email_account);
 
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY,
-    email_account VARCHAR(255) NOT NULL UNIQUE,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     gender INTEGER NOT NULL,
@@ -97,7 +98,6 @@ CREATE TABLE user_profiles (
 	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id),
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
-CREATE INDEX idx_user_profile_email_account ON user_profiles(email_account);
 
 CREATE OR REPLACE FUNCTION func_create_user(
     p_email_account VARCHAR,
@@ -112,9 +112,10 @@ CREATE OR REPLACE FUNCTION func_create_user(
 DECLARE
     new_user_id UUID;
 BEGIN
-    INSERT INTO users (id, password, created_at, updated_at, status, role)
+    INSERT INTO users (id, email_account, password, created_at, updated_at, status, role)
     VALUES (
         gen_random_uuid(),
+        p_email_account,
 		crypt(p_password, gen_salt('bf')),
         NOW(),
         NOW(),
@@ -125,7 +126,6 @@ BEGIN
 
     INSERT INTO user_profiles (
         id,
-        email_account,
         first_name,
         last_name,
         gender,
@@ -135,7 +135,6 @@ BEGIN
     )
     VALUES (
         new_user_id,
-        p_email_account,
         p_first_name,
         p_last_name,
         p_gender,

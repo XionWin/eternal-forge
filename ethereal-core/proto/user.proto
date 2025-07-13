@@ -1,27 +1,41 @@
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
+// import "google/protobuf/timestamp.proto";
 
 package user;
 
-message GetUserByIdRequest {
-  string id = 1;
-}
-
 service UserService {
-  rpc GetUserById (GetUserByIdRequest) returns (User);
+  rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+  rpc QueryUser (QueryUserRequest) returns (QueryUserResponse);
 }
 
-/* User Profile */
-message User {
+message QueryUserRequest {
+    oneof identity {
+    string id = 1;
+    string email = 2;
+  }
+}
+
+message QueryUserResponse {
+  string email = 1;
+  string firstname = 2;
+  string lastname = 3;
+  int32 gender = 4;
+  int32 locale = 5;
+  string avatar = 6;
+  string signature = 7;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string password = 2;
+  string firstname = 3;
+  string lastname = 4;
+  int32 gender = 5;
+  int32 locale = 6;
+  string avatar = 7;
+  string signature = 8;
+}
+message CreateUserResponse {
   string id = 1;
-  google.protobuf.Timestamp created_at = 2;
-  google.protobuf.Timestamp updated_at = 3;
-  int32 status = 4;
-  int32 role = 5;
-  string encryption_data = 6;
-}
-
-message Users {
-  repeated User users = 1;
 }

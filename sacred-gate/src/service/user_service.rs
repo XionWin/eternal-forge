@@ -1,36 +1,54 @@
-use ethereal_core::proto::{GetUserByIdRequest, User};
+use ethereal_core::proto::{CreateUserRequest, CreateUserResponse, QueryUserRequest, QueryUserResponse};
 
 pub struct UserService {
-    valut_user_service: Box<dyn arcane_vault::domain::service::UserService>,
+    valut_signup_service: Box<dyn arcane_vault::domain::service::UserService>,
 }
 
 impl UserService {
     pub async fn new() -> Self {
-        let valut_user_service = arcane_vault::UserService::new().await;
-        Self { valut_user_service }
+        let valut_signup_service = arcane_vault::UserService::new().await;
+        Self {
+            valut_signup_service,
+        }
     }
 }
 
 /// Generated trait containing gRPC methods that should be implemented for use with UserServiceServer.
 #[tonic::async_trait]
 impl ethereal_core::proto::user_service_server::UserService for UserService {
-    async fn get_user_by_id(
+    async fn create_user(
         &self,
-        request: tonic::Request<GetUserByIdRequest>,
-    ) -> std::result::Result<tonic::Response<User>, tonic::Status> {
-        let request_id = request.into_inner().id;
-        match request_id.parse::<uuid::Uuid>() {
-            Ok(uuid) => {
-                let result = self.valut_user_service.query_user_by_id(&uuid).await;
-                match result {
-                    Ok(user) => Ok(tonic::Response::new(user)),
-                    Err(err) => Err(err.into()),
-                }
-            }
-            Err(err) => Err(tonic::Status::new(
-                tonic::Code::Internal,
-                format!("id is not a validated uuid, error: {:?}", err),
-            )),
+        request: tonic::Request<CreateUserRequest>,
+    ) -> std::result::Result<tonic::Response<CreateUserResponse>, tonic::Status> {
+        let request = request.into_inner();
+        let email: String = request.email;
+        let password: String = request.password;
+        let firstname: String = request.firstname;
+        let lastname: String = request.lastname;
+        let gender: i32 = request.gender;
+        let locale: i32 = request.locale;
+        let avatar: String = request.avatar;
+        let signature: String = request.signature;
+
+        let result = self
+            .valut_signup_service
+            .create_user(
+                &email, &password, &firstname, &lastname, gender, locale, &avatar, &signature,
+            )
+            .await;
+        match result {
+            Ok(user_id) => Ok(tonic::Response::new(CreateUserResponse {
+                id: user_id.to_string(),
+            })),
+            Err(err) => Err(err.into()),
         }
     }
+    
+    async fn query_user(
+        &self,
+        _request: tonic::Request<QueryUserRequest>,
+    ) -> std::result::Result<tonic::Response<QueryUserResponse>, tonic::Status> {
+        todo!()
+    }
+
 }

@@ -1,4 +1,3 @@
-use ethereal_core::proto::User;
 use uuid::Uuid;
 
 use crate::{domain::error::ArcaneVaultError, infrastructure::repository::DbContext};
@@ -17,25 +16,47 @@ impl UserService {
 
 #[async_trait::async_trait]
 impl crate::domain::service::UserService for UserService {
-    async fn query_user_by_id(&self, uuid: &Uuid) -> Result<User, ArcaneVaultError> {
-        let sql_statement = "SELECT id, created_at, updated_at, status, role, encryption_data FROM \"user\" where id = $1 LIMIT 1";
-        self.db_context
+    async fn create_user(
+        &self,
+        email: &str,
+        password: &str,
+        firstname: &str,
+        lastname: &str,
+        gender: i32,
+        locale: i32,
+        avatar: &str,
+        signature: &str,
+    ) -> Result<Uuid, ArcaneVaultError> {
+        let sql_statement = r#"
+            SELECT func_create_user(
+                $1, $2, $3, $4, $5, $6, $7, $8
+            ) AS user_id
+        "#;
+        let user_id = self
+            .db_context
             .get_repository()
             .await
-            .query_one(sql_statement, &[&uuid], get_user_from_row)
-            .await
+            .query_one(
+                sql_statement,
+                &[
+                    &email,
+                    &password,
+                    &firstname,
+                    &lastname,
+                    &gender,
+                    &locale,
+                    &avatar,
+                    &signature,
+                ],
+                get_user_id_from_row,
+            )
+            .await?;
+
+        Ok(user_id)
     }
 }
 
-fn get_user_from_row(row: &tokio_postgres::Row) -> User {
-    let created_at: std::time::SystemTime = row.get("created_at");
-    let updated_at: std::time::SystemTime = row.get("updated_at");
-    User {
-        id: crate::infrastructure::utility::get_string_from_uuid(row.get("id")),
-        created_at: Some(prost_types::Timestamp::from(created_at)),
-        updated_at: Some(prost_types::Timestamp::from(updated_at)),
-        status: row.get("status"),
-        role: row.get("role"),
-        encryption_data: row.get("encryption_data"),
-    }
+fn get_user_id_from_row(row: &tokio_postgres::Row) -> Uuid {
+    let user_id: Uuid = row.get("user_id");
+    user_id
 }
