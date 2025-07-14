@@ -146,9 +146,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION func_query_user_by_user_id(
-    p_user_id UUID
+CREATE OR REPLACE FUNCTION func_query_user_by_id(
+    p_id UUID
 ) RETURNS TABLE (
+	id UUID,
     email_account VARCHAR,
 	created_at TIMESTAMPTZ,
 	updated_at TIMESTAMPTZ,
@@ -164,7 +165,8 @@ CREATE OR REPLACE FUNCTION func_query_user_by_user_id(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
+		u.id,
         u.email_account,
         u.created_at,
         u.updated_at,
@@ -187,6 +189,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION func_query_user_by_email_account(
     p_email_account VARCHAR
 ) RETURNS TABLE (
+	id UUID,
     email_account VARCHAR,
 	created_at TIMESTAMPTZ,
 	updated_at TIMESTAMPTZ,
@@ -202,7 +205,8 @@ CREATE OR REPLACE FUNCTION func_query_user_by_email_account(
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
+		u.id,
         u.email_account,
         u.created_at,
         u.updated_at,

@@ -4,6 +4,22 @@ import "google/protobuf/timestamp.proto";
 
 package user;
 
+message User {
+  string id = 1;
+  string email_account = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  google.protobuf.Timestamp last_login_at = 5;
+  int32 status = 6;
+  int32 role = 7;
+  string firstname = 8;
+  string lastname = 9;
+  int32 gender = 10;
+  int32 locale = 11;
+  string avatar = 12;
+  string signature = 13;
+}
+
 service UserService {
   rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
   rpc QueryUser (QueryUserRequest) returns (QueryUserResponse);
@@ -17,18 +33,7 @@ message QueryUserRequest {
 }
 
 message QueryUserResponse {
-  string email_account = 1;
-  google.protobuf.Timestamp created_at = 2;
-  google.protobuf.Timestamp update_at = 3;
-  google.protobuf.Timestamp last_login_at = 4;
-  int32 status = 5;
-  int32 role = 6;
-  string firstname = 7;
-  string lastname = 8;
-  int32 gender = 9;
-  int32 locale = 10;
-  string avatar = 11;
-  string signature = 12;
+  User user = 1;
 }
 
 message CreateUserRequest {
