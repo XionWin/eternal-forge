@@ -146,7 +146,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION func_get_user_by_user_id(
+CREATE OR REPLACE FUNCTION func_query_user_by_user_id(
     p_user_id UUID
 ) RETURNS TABLE (
     email_account VARCHAR,
@@ -184,7 +184,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION func_get_user_by_email_account(
+CREATE OR REPLACE FUNCTION func_query_user_by_email_account(
     p_email_account VARCHAR
 ) RETURNS TABLE (
     email_account VARCHAR,
