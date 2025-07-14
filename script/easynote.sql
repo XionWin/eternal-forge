@@ -77,8 +77,9 @@ CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email_account VARCHAR(255) NOT NULL UNIQUE,
 	password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	last_login_at TIMESTAMPTZ DEFAULT NULL,
     status INTEGER NOT NULL,
     role INTEGER NOT NULL,
     CONSTRAINT fk_status FOREIGN KEY (status) REFERENCES user_statuses(id),
@@ -112,13 +113,11 @@ CREATE OR REPLACE FUNCTION func_create_user(
 DECLARE
     new_user_id UUID;
 BEGIN
-    INSERT INTO users (id, email_account, password, created_at, updated_at, status, role)
+    INSERT INTO users (id, email_account, password, status, role)
     VALUES (
         gen_random_uuid(),
         p_email_account,
 		crypt(p_password, gen_salt('bf')),
-        NOW(),
-        NOW(),
         1,
         2
     )
@@ -143,6 +142,82 @@ BEGIN
         p_signature
     );
     RETURN new_user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION func_get_user_by_user_id(
+    p_user_id UUID
+) RETURNS TABLE (
+    email_account VARCHAR,
+	created_at TIMESTAMPTZ,
+	updated_at TIMESTAMPTZ,
+	last_login_at TIMESTAMPTZ,
+	status INTEGER,
+	role INTEGER,
+    first_name VARCHAR,
+    last_name VARCHAR,
+    gender INTEGER,
+    locale INTEGER,
+    avatar VARCHAR,
+    signature VARCHAR
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        u.email_account,
+        u.created_at,
+        u.updated_at,
+		u.last_login_at,
+        u.status,
+        u.role,
+        up.first_name,
+        up.last_name,
+        up.gender,
+        up.locale,
+        up.avatar,
+        up.signature
+    FROM users u
+    JOIN user_profiles up ON u.id = up.id
+    WHERE u.id = p_user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION func_get_user_by_email_account(
+    p_email_account VARCHAR
+) RETURNS TABLE (
+    email_account VARCHAR,
+	created_at TIMESTAMPTZ,
+	updated_at TIMESTAMPTZ,
+	last_login_at TIMESTAMPTZ,
+	status INTEGER,
+	role INTEGER,
+    first_name VARCHAR,
+    last_name VARCHAR,
+    gender INTEGER,
+    locale INTEGER,
+    avatar VARCHAR,
+    signature VARCHAR
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        u.email_account,
+        u.created_at,
+        u.updated_at,
+		u.last_login_at,
+        u.status,
+        u.role,
+        up.first_name,
+        up.last_name,
+        up.gender,
+        up.locale,
+        up.avatar,
+        up.signature
+    FROM users u
+    JOIN user_profiles up ON u.id = up.id
+    WHERE u.email_account = p_email_account;
 END;
 $$ LANGUAGE plpgsql;
 
