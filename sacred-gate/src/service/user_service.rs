@@ -45,9 +45,12 @@ impl ethereal_core::proto::user_service_server::UserService for UserService {
     }
     
     async fn query_user(
-        &self,
-        _request: tonic::Request<QueryUserRequest>,
-    ) -> std::result::Result<tonic::Response<QueryUserResponse>, tonic::Status> {
+            &self,
+            _request: tonic::Request<QueryUserRequest>,
+        ) -> std::result::Result<
+            tonic::Response<QueryUserResponse>,
+            tonic::Status,
+        > {
         todo!()
     }
 

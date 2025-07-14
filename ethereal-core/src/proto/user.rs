@@ -17,18 +17,28 @@ pub mod query_user_request {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryUserResponse {
     #[prost(string, tag = "1")]
-    pub email: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub firstname: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub lastname: ::prost::alloc::string::String,
-    #[prost(int32, tag = "4")]
-    pub gender: i32,
+    pub email_account: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub created_at: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(message, optional, tag = "3")]
+    pub update_at: ::core::option::Option<::prost_types::Timestamp>,
+    #[prost(message, optional, tag = "4")]
+    pub last_login_at: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(int32, tag = "5")]
-    pub locale: i32,
-    #[prost(string, tag = "6")]
-    pub avatar: ::prost::alloc::string::String,
+    pub status: i32,
+    #[prost(int32, tag = "6")]
+    pub role: i32,
     #[prost(string, tag = "7")]
+    pub firstname: ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub lastname: ::prost::alloc::string::String,
+    #[prost(int32, tag = "9")]
+    pub gender: i32,
+    #[prost(int32, tag = "10")]
+    pub locale: i32,
+    #[prost(string, tag = "11")]
+    pub avatar: ::prost::alloc::string::String,
+    #[prost(string, tag = "12")]
     pub signature: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]

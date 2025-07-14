@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-// import "google/protobuf/timestamp.proto";
+import "google/protobuf/timestamp.proto";
 
 package user;
 
@@ -17,13 +17,18 @@ message QueryUserRequest {
 }
 
 message QueryUserResponse {
-  string email = 1;
-  string firstname = 2;
-  string lastname = 3;
-  int32 gender = 4;
-  int32 locale = 5;
-  string avatar = 6;
-  string signature = 7;
+  string email_account = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp update_at = 3;
+  google.protobuf.Timestamp last_login_at = 4;
+  int32 status = 5;
+  int32 role = 6;
+  string firstname = 7;
+  string lastname = 8;
+  int32 gender = 9;
+  int32 locale = 10;
+  string avatar = 11;
+  string signature = 12;
 }
 
 message CreateUserRequest {
