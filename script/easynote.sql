@@ -89,8 +89,8 @@ CREATE INDEX idx_users_email_account ON users(email_account);
 
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY,
-    first_name VARCHAR(255) NOT NULL,
-    last_name VARCHAR(255) NOT NULL,
+    firstname VARCHAR(255) NOT NULL,
+    lastname VARCHAR(255) NOT NULL,
     gender INTEGER NOT NULL,
     locale INTEGER NOT NULL,
     avatar VARCHAR(255),
@@ -103,8 +103,8 @@ CREATE TABLE user_profiles (
 CREATE OR REPLACE FUNCTION func_create_user(
     p_email_account VARCHAR,
 	p_password VARCHAR,
-    p_first_name VARCHAR,
-    p_last_name VARCHAR,
+    p_firstname VARCHAR,
+    p_lastname VARCHAR,
     p_gender INTEGER,
     p_locale INTEGER,
     p_avatar VARCHAR,
@@ -125,8 +125,8 @@ BEGIN
 
     INSERT INTO user_profiles (
         id,
-        first_name,
-        last_name,
+        firstname,
+        lastname,
         gender,
         locale,
         avatar,
@@ -134,8 +134,8 @@ BEGIN
     )
     VALUES (
         new_user_id,
-        p_first_name,
-        p_last_name,
+        p_firstname,
+        p_lastname,
         p_gender,
         p_locale,
         p_avatar,
@@ -156,8 +156,8 @@ CREATE OR REPLACE FUNCTION func_query_user_by_id(
 	last_login_at TIMESTAMPTZ,
 	status INTEGER,
 	role INTEGER,
-    first_name VARCHAR,
-    last_name VARCHAR,
+    firstname VARCHAR,
+    lastname VARCHAR,
     gender INTEGER,
     locale INTEGER,
     avatar VARCHAR,
@@ -173,15 +173,15 @@ BEGIN
 		u.last_login_at,
         u.status,
         u.role,
-        up.first_name,
-        up.last_name,
+        up.firstname,
+        up.lastname,
         up.gender,
         up.locale,
         up.avatar,
         up.signature
     FROM users u
     JOIN user_profiles up ON u.id = up.id
-    WHERE u.id = p_user_id;
+    WHERE u.id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -196,8 +196,8 @@ CREATE OR REPLACE FUNCTION func_query_user_by_email_account(
 	last_login_at TIMESTAMPTZ,
 	status INTEGER,
 	role INTEGER,
-    first_name VARCHAR,
-    last_name VARCHAR,
+    firstname VARCHAR,
+    lastname VARCHAR,
     gender INTEGER,
     locale INTEGER,
     avatar VARCHAR,
@@ -213,8 +213,8 @@ BEGIN
 		u.last_login_at,
         u.status,
         u.role,
-        up.first_name,
-        up.last_name,
+        up.firstname,
+        up.lastname,
         up.gender,
         up.locale,
         up.avatar,

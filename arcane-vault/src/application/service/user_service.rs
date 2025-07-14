@@ -99,13 +99,16 @@ fn get_user_id_from_row(row: &tokio_postgres::Row) -> Uuid {
 fn get_user_from_row(row: &tokio_postgres::Row) -> User {
     let created_at: std::time::SystemTime = row.get("created_at");
     let updated_at: std::time::SystemTime = row.get("updated_at");
-    let last_login_at: std::time::SystemTime = row.get("last_login_at");
+    let last_login_at: Option<std::time::SystemTime> = row.get("last_login_at");
     User {
-        id: row.get("id"),
+        id: crate::infrastructure::utility::get_string_from_uuid(row.get("id")),
         email_account: row.get("email_account"),
         created_at: Some(prost_types::Timestamp::from(created_at)),
         updated_at: Some(prost_types::Timestamp::from(updated_at)),
-        last_login_at: Some(prost_types::Timestamp::from(last_login_at)),
+        last_login_at: match last_login_at {
+            Some(last_login_at) => Some(prost_types::Timestamp::from(last_login_at)),
+            None => None,
+        },
         status: row.get("status"),
         role: row.get("role"),
         firstname: row.get("firstname"),

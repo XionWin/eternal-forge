@@ -1,4 +1,7 @@
-use ethereal_core::proto::{CreateUserRequest, CreateUserResponse, QueryUserRequest, QueryUserResponse};
+use ethereal_core::proto::{
+    CreateUserRequest, CreateUserResponse, QueryUserRequest, QueryUserResponse,
+    query_user_request::Identity,
+};
 
 pub struct UserService {
     valut_signup_service: Box<dyn arcane_vault::domain::service::UserService>,
@@ -43,15 +46,26 @@ impl ethereal_core::proto::user_service_server::UserService for UserService {
             Err(err) => Err(err.into()),
         }
     }
-    
-    async fn query_user(
-            &self,
-            _request: tonic::Request<QueryUserRequest>,
-        ) -> std::result::Result<
-            tonic::Response<QueryUserResponse>,
-            tonic::Status,
-        > {
-        todo!()
-    }
 
+    async fn query_user(
+        &self,
+        request: tonic::Request<QueryUserRequest>,
+    ) -> std::result::Result<tonic::Response<QueryUserResponse>, tonic::Status> {
+        let request = request.into_inner();
+        match request.identity {
+            Some(Identity::Id(id)) => match self.valut_signup_service.query_user_by_id(&id).await {
+                Ok(user) => Ok(tonic::Response::new(QueryUserResponse { user })),
+                Err(err) => Err(err.into()),
+            },
+            Some(Identity::Email(email)) => match self
+                .valut_signup_service
+                .query_user_by_email_account(&email)
+                .await
+            {
+                Ok(user) => Ok(tonic::Response::new(QueryUserResponse { user })),
+                Err(err) => Err(err.into()),
+            },
+            None => Ok(tonic::Response::new(QueryUserResponse { user: None })),
+        }
+    }
 }
