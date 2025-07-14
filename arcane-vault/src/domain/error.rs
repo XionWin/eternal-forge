@@ -1,18 +1,21 @@
 use deadpool_postgres::CreatePoolError;
+use tokio_postgres::error::SqlState;
+
+#[derive(Debug, PartialEq)]
+pub enum ArcaneVaultErrorCode {
+    NoData,
+    InnerError(String),
+}
 
 #[derive(Debug)]
 pub struct ArcaneVaultError {
     pub message: String,
-    pub code: Option<String>,
+    pub code: Option<ArcaneVaultErrorCode>,
 }
 
 impl std::fmt::Display for ArcaneVaultError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let code_message = match &self.code {
-            Some(code) => format!("[error code: {}]", code),
-            None => String::new(),
-        };
-        write!(f, "arcane-vault error: {} {}", self.message, code_message)
+        write!(f, "arcane-vault error: {} {:?}", self.message, self.code)
     }
 }
 
@@ -23,8 +26,9 @@ impl From<tokio_postgres::error::Error> for ArcaneVaultError {
         ArcaneVaultError {
             message: format!("{}", err),
             code: match err.code() {
-                Some(code) => Some(format!("{:?}", code)),
-                None => Some("tokio postgres error".into()),
+                Some(code) if code == &SqlState::NO_DATA => Some(ArcaneVaultErrorCode::NoData),
+                Some(code) => Some(ArcaneVaultErrorCode::InnerError(format!("{:?}", code))),
+                None => Some(ArcaneVaultErrorCode::InnerError("tokio postgres error".into())),
             },
         }
     }
@@ -40,7 +44,7 @@ impl From<CreatePoolError> for ArcaneVaultError {
     fn from(error: CreatePoolError) -> Self {
         Self {
             message: error.to_string(),
-            code: Some("create pool error".into()),
+            code: Some(ArcaneVaultErrorCode::InnerError("create pool error".into())),
         }
     }
 }
@@ -49,7 +53,7 @@ impl From<deadpool_postgres::PoolError> for ArcaneVaultError {
     fn from(error: deadpool_postgres::PoolError) -> Self {
         Self {
             message: error.to_string(),
-            code: Some("deadpool postgres error".into()),
+            code: Some(ArcaneVaultErrorCode::InnerError("deadpool postgres error".into())),
         }
     }
 }

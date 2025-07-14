@@ -1,6 +1,7 @@
 use std::time::Duration;
 use deadpool_postgres::Pool;
 use tokio::time::sleep;
+use tokio_postgres::Row;
 use crate::domain::error::ArcaneVaultError;
 
 const MAX_RETRIES: u32 = 3;
@@ -15,6 +16,21 @@ pub struct Repository {
 impl Repository {
     pub fn new(pool: Pool) -> Self {
         Self { pool }
+    }
+
+    pub async fn query_one_row(
+        &self,
+        statement: &str,
+        params: &[&(dyn tokio_postgres::types::ToSql + Sync)]
+    ) -> Result<Row, ArcaneVaultError> {
+        self.with_retry(|client| async move {
+            let row = client
+                .query_one(statement, params)
+                .await
+                .map_err(ArcaneVaultError::from)?;
+            Ok(row)
+        })
+        .await
     }
 
     pub async fn query_one<T>(

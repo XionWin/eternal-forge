@@ -1,6 +1,7 @@
+use ethereal_core::proto::User;
 use uuid::Uuid;
 
-use crate::{domain::error::ArcaneVaultError, infrastructure::repository::DbContext};
+use crate::{domain::error::{ArcaneVaultError, ArcaneVaultErrorCode}, infrastructure::repository::DbContext};
 
 pub struct UserService {
     db_context: DbContext,
@@ -39,14 +40,7 @@ impl crate::domain::service::UserService for UserService {
             .query_one(
                 sql_statement,
                 &[
-                    &email,
-                    &password,
-                    &firstname,
-                    &lastname,
-                    &gender,
-                    &locale,
-                    &avatar,
-                    &signature,
+                    &email, &password, &firstname, &lastname, &gender, &locale, &avatar, &signature,
                 ],
                 get_user_id_from_row,
             )
@@ -54,9 +48,71 @@ impl crate::domain::service::UserService for UserService {
 
         Ok(user_id)
     }
+
+    async fn query_user_by_id(&self, id: &str) -> Result<Option<User>, ArcaneVaultError> {
+        let sql_statement = r#"
+            SELECT * FROM func_query_user_by_id(
+                $1
+            )
+        "#;
+        let row = self
+            .db_context
+            .get_repository()
+            .await
+            .query_one_row(sql_statement, &[&id])
+            .await;
+        match row {
+            Ok(row) => Ok(Some(get_user_from_row(&row))),
+            Err(e) if e.code == Some(ArcaneVaultErrorCode::NoData) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn query_user_by_email_account(
+        &self,
+        email_account: &str,
+    ) -> Result<Option<User>, ArcaneVaultError> {
+        let sql_statement = r#"
+            SELECT * FROM func_query_user_by_email_account(
+                $1
+            )
+        "#;
+        let row = self
+            .db_context
+            .get_repository()
+            .await
+            .query_one_row(sql_statement, &[&email_account])
+            .await;
+        match row {
+            Ok(row) => Ok(Some(get_user_from_row(&row))),
+            Err(e) if e.code == Some(ArcaneVaultErrorCode::NoData) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
 }
 
 fn get_user_id_from_row(row: &tokio_postgres::Row) -> Uuid {
     let user_id: Uuid = row.get("user_id");
     user_id
+}
+
+fn get_user_from_row(row: &tokio_postgres::Row) -> User {
+    let created_at: std::time::SystemTime = row.get("created_at");
+    let updated_at: std::time::SystemTime = row.get("updated_at");
+    let last_login_at: std::time::SystemTime = row.get("last_login_at");
+    User {
+        id: row.get("id"),
+        email_account: row.get("email_account"),
+        created_at: Some(prost_types::Timestamp::from(created_at)),
+        updated_at: Some(prost_types::Timestamp::from(updated_at)),
+        last_login_at: Some(prost_types::Timestamp::from(last_login_at)),
+        status: row.get("status"),
+        role: row.get("role"),
+        firstname: row.get("firstname"),
+        lastname: row.get("lastname"),
+        gender: row.get("gender"),
+        locale: row.get("locale"),
+        avatar: row.get("avatar"),
+        signature: row.get("signature"),
+    }
 }
