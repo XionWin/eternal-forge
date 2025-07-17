@@ -49,7 +49,7 @@ impl crate::domain::service::UserService for UserService {
         Ok(user_id)
     }
 
-    async fn query_user_by_id(&self, id: &str) -> Result<Option<User>, ArcaneVaultError> {
+    async fn query_user_by_id(&self, id: Uuid) -> Result<Option<User>, ArcaneVaultError> {
         let sql_statement = r#"
             SELECT * FROM func_query_user_by_id(
                 $1

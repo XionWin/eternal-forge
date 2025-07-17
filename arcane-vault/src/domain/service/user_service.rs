@@ -19,7 +19,7 @@ pub trait UserService: Sync + Send {
 
     async fn query_user_by_id(
         &self,
-        id: &str,
+        id: Uuid,
     ) -> Result<Option<User>, ArcaneVaultError>;
 
     async fn query_user_by_email_account(
