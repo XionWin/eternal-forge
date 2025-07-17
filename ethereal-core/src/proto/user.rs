@@ -29,26 +29,6 @@ pub struct User {
     pub signature: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryUserRequest {
-    #[prost(oneof = "query_user_request::Identity", tags = "1, 2")]
-    pub identity: ::core::option::Option<query_user_request::Identity>,
-}
-/// Nested message and enum types in `QueryUserRequest`.
-pub mod query_user_request {
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Identity {
-        #[prost(string, tag = "1")]
-        Id(::prost::alloc::string::String),
-        #[prost(string, tag = "2")]
-        Email(::prost::alloc::string::String),
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QueryUserResponse {
-    #[prost(message, optional, tag = "1")]
-    pub user: ::core::option::Option<User>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserRequest {
     #[prost(string, tag = "1")]
     pub email: ::prost::alloc::string::String,
@@ -71,6 +51,26 @@ pub struct CreateUserRequest {
 pub struct CreateUserResponse {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryUserRequest {
+    #[prost(oneof = "query_user_request::Identity", tags = "1, 2")]
+    pub identity: ::core::option::Option<query_user_request::Identity>,
+}
+/// Nested message and enum types in `QueryUserRequest`.
+pub mod query_user_request {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Identity {
+        #[prost(string, tag = "1")]
+        Id(::prost::alloc::string::String),
+        #[prost(string, tag = "2")]
+        Email(::prost::alloc::string::String),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct QueryUserResponse {
+    #[prost(message, optional, tag = "1")]
+    pub user: ::core::option::Option<User>,
 }
 /// Generated client implementations.
 pub mod user_service_client {
