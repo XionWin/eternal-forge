@@ -25,17 +25,6 @@ service UserService {
   rpc QueryUser (QueryUserRequest) returns (QueryUserResponse);
 }
 
-message QueryUserRequest {
-    oneof identity {
-    string id = 1;
-    string email = 2;
-  }
-}
-
-message QueryUserResponse {
-  User user = 1;
-}
-
 message CreateUserRequest {
   string email = 1;
   string password = 2;
@@ -48,4 +37,14 @@ message CreateUserRequest {
 }
 message CreateUserResponse {
   string id = 1;
+}
+
+message QueryUserRequest {
+    oneof identity {
+    string id = 1;
+    string email = 2;
+  }
+}
+message QueryUserResponse {
+  User user = 1;
 }
