@@ -1,5 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+DROP TABLE IF EXISTS user_staging;
 DROP TABLE IF EXISTS user_profiles;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS genders;
@@ -35,10 +36,9 @@ CREATE TABLE user_statuses (
 );
 INSERT INTO user_statuses (id, name, description) VALUES
 (0, 'Inactive', 'User account is inactive'),
-(1, 'Unverified', 'User account is unverified'),
-(2, 'Active', 'User account is active'),
-(3, 'Suspended', 'User account is suspended'),
-(4, 'Deleted', 'User account is deleted');
+(1, 'Active', 'User account is active'),
+(2, 'Suspended', 'User account is suspended'),
+(3, 'Deleted', 'User account is deleted');
 
 CREATE TABLE locales (
     id INTEGER PRIMARY KEY,
@@ -73,6 +73,23 @@ INSERT INTO locales (
     NOW()
 );
 
+CREATE TABLE user_staging (
+	email_account VARCHAR(255) PRIMARY KEY,
+	password VARCHAR(255) NOT NULL,
+	verification_code VARCHAR(4) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	last_login_at TIMESTAMPTZ DEFAULT NULL,
+    firstname VARCHAR(255) NOT NULL,
+    lastname VARCHAR(255) NOT NULL,
+    gender INTEGER NOT NULL,
+    locale INTEGER NOT NULL,
+    avatar VARCHAR(255),
+    signature VARCHAR(255),
+	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id),
+	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
+);
+
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email_account VARCHAR(255) NOT NULL UNIQUE,
@@ -100,40 +117,73 @@ CREATE TABLE user_profiles (
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
 
-CREATE OR REPLACE FUNCTION func_create_user(
+CREATE OR REPLACE FUNCTION func_generate_verification_code()
+RETURNS VARCHAR
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    result VARCHAR;
+BEGIN
+    result := LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
+    RETURN result;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION func_verify_email_account (
+    p_email_account VARCHAR
+)
+RETURNS BOOL
+AS $$
+DECLARE
+    is_exists BOOL;
+BEGIN
+	is_exists :=  NOT (
+		EXISTS (SELECT 1 FROM user_staging WHERE email_account = p_email_account)
+       	OR EXISTS (SELECT 1 FROM users WHERE email_account = p_email_account)
+   );
+	RETURN is_exists;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_register_user (
     p_email_account VARCHAR,
 	p_password VARCHAR,
     p_firstname VARCHAR,
     p_lastname VARCHAR,
     p_gender INTEGER,
     p_locale INTEGER,
-    p_avatar VARCHAR,
-    p_signature VARCHAR
-) RETURNS UUID AS $$
+    p_avatar VARCHAR DEFAULT NULL,
+    p_signature VARCHAR DEFAULT NULL
+)
+RETURNS VARCHAR
+AS $$
 DECLARE
-    new_user_id UUID;
+    v_code VARCHAR;
 BEGIN
-    INSERT INTO users (id, email_account, password, status, role)
-    VALUES (
-        gen_random_uuid(),
-        p_email_account,
-		crypt(p_password, gen_salt('bf')),
-        1,
-        2
-    )
-    RETURNING id INTO new_user_id;
+	IF NOT func_verify_email_account(p_email_account) THEN
+        RAISE EXCEPTION 'Email account % is already in use.', p_email_account;
+    END IF;
 
-    INSERT INTO user_profiles (
-        id,
+	v_code := func_generate_verification_code();
+
+    INSERT INTO user_staging (
+        email_account,
+        password,
+		verification_code,
+        created_at,
+        updated_at,
         firstname,
         lastname,
         gender,
         locale,
         avatar,
         signature
-    )
-    VALUES (
-        new_user_id,
+    ) VALUES (
+        p_email_account,
+        crypt(p_password, gen_salt('bf')),
+		v_code,
+        now(),
+        now(),
         p_firstname,
         p_lastname,
         p_gender,
@@ -141,7 +191,7 @@ BEGIN
         p_avatar,
         p_signature
     );
-    RETURN new_user_id;
+	RETURN v_code;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -162,7 +212,8 @@ CREATE OR REPLACE FUNCTION func_query_user_by_id(
     locale INTEGER,
     avatar VARCHAR,
     signature VARCHAR
-) AS $$
+)
+AS $$
 BEGIN
     RETURN QUERY
     SELECT
