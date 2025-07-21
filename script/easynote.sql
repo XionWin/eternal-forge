@@ -132,16 +132,16 @@ $$;
 CREATE OR REPLACE FUNCTION func_verify_email_account (
     p_email_account VARCHAR
 )
-RETURNS BOOL
+RETURNS BOOLEAN
 AS $$
 DECLARE
-    is_exists BOOL;
+    is_available BOOLEAN;
 BEGIN
-	is_exists :=  NOT (
+	is_available :=  NOT (
 		EXISTS (SELECT 1 FROM user_staging WHERE email_account = p_email_account)
        	OR EXISTS (SELECT 1 FROM users WHERE email_account = p_email_account)
    );
-	RETURN is_exists;
+	RETURN is_available;
 END;
 $$ LANGUAGE plpgsql;
 
