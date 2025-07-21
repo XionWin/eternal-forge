@@ -10,9 +10,8 @@ pub struct UserService {
 
 impl UserService {
     pub async fn new() -> Self {
-        let valut_signup_service = arcane_vault::UserService::new().await;
         Self {
-            valut_signup_service,
+            valut_signup_service: arcane_vault::UserService::new().await,
         }
     }
 }
@@ -54,7 +53,13 @@ impl ethereal_core::proto::user_service_server::UserService for UserService {
     ) -> std::result::Result<tonic::Response<QueryUserResponse>, tonic::Status> {
         let request = request.into_inner();
         match request.identity {
-            Some(Identity::Id(id)) => match self.valut_signup_service.query_user_by_id(Uuid::parse_str(&id).map_err(|err| tonic::Status::from_error(err.into()))?).await {
+            Some(Identity::Id(id)) => match self
+                .valut_signup_service
+                .query_user_by_id(
+                    Uuid::parse_str(&id).map_err(|err| tonic::Status::from_error(err.into()))?,
+                )
+                .await
+            {
                 Ok(user) => Ok(tonic::Response::new(QueryUserResponse { user })),
                 Err(err) => Err(err.into()),
             },
