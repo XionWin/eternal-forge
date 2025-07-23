@@ -196,6 +196,63 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION func_verify_user (
+    p_email_account VARCHAR,
+	p_password VARCHAR,
+    p_verification_code VARCHAR
+)
+RETURNS VARCHAR
+AS $$
+DECLARE
+    v_user_id UUID;
+    v_staging user_staging%ROWTYPE;
+BEGIN
+	SELECT *
+    INTO v_staging
+    FROM user_staging
+    WHERE email_account = p_email_account
+      AND crypt(p_password, password) = password
+      AND verification_code = p_verification_code;
+	  
+	IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+	INSERT INTO users (
+        email_account, password,
+        status, role,
+        created_at, updated_at, last_login_at
+    ) VALUES (
+        v_staging.email_account,
+        v_staging.password,
+        1,
+        2,
+        v_staging.created_at, now(), now()
+    )
+    RETURNING id INTO v_user_id;
+	
+    INSERT INTO user_profiles (
+        id, firstname, lastname,
+        gender, locale,
+        avatar, signature
+    ) VALUES (
+        v_user_id,
+        v_staging.firstname,
+        v_staging.lastname,
+        v_staging.gender,
+        v_staging.locale,
+        v_staging.avatar,
+        v_staging.signature
+    );
+	
+    DELETE FROM user_staging
+    WHERE email_account = v_staging.email_account;
+	
+    RETURN v_user_id::VARCHAR;
+END;
+$$ LANGUAGE plpgsql;
+
+
 CREATE OR REPLACE FUNCTION func_query_user_by_id(
     p_id UUID
 ) RETURNS TABLE (

@@ -13,8 +13,14 @@ SELECT * FROM func_register_user(
 
 SELECT * FROM user_staging;
 
+SELECT * FROM func_verify_user(
+    'puppywin@163.com',
+    'Wenxuan815',
+    '0653'
+);
+
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
 
-SELECT * FROM func_query_user_by_id('98b7bd95-4a08-4347-a751-19a269327c45');
+SELECT * FROM func_query_user_by_id('7b5e73b5-70c2-43dd-8224-dfa23d5573d4');
 
 SELECT * FROM func_query_user_by_email_account('puppywin@163.com');
