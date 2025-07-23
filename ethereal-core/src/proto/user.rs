@@ -50,7 +50,21 @@ pub struct CreateUserRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserResponse {
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    pub verification_code: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VerifyUserRequest {
+    #[prost(string, tag = "1")]
+    pub email: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub verify_code: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VerifyUserResponse {
+    #[prost(string, tag = "1")]
+    pub user_id: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct QueryUserRequest {
@@ -187,6 +201,30 @@ pub mod user_service_client {
                 .insert(GrpcMethod::new("user.UserService", "CreateUser"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn verify_user(
+            &mut self,
+            request: impl tonic::IntoRequest<super::VerifyUserRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::VerifyUserResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/user.UserService/VerifyUser",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("user.UserService", "VerifyUser"));
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn query_user(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryUserRequest>,
@@ -231,6 +269,13 @@ pub mod user_service_server {
             request: tonic::Request<super::CreateUserRequest>,
         ) -> std::result::Result<
             tonic::Response<super::CreateUserResponse>,
+            tonic::Status,
+        >;
+        async fn verify_user(
+            &self,
+            request: tonic::Request<super::VerifyUserRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::VerifyUserResponse>,
             tonic::Status,
         >;
         async fn query_user(
@@ -347,6 +392,51 @@ pub mod user_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = CreateUserSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/user.UserService/VerifyUser" => {
+                    #[allow(non_camel_case_types)]
+                    struct VerifyUserSvc<T: UserService>(pub Arc<T>);
+                    impl<
+                        T: UserService,
+                    > tonic::server::UnaryService<super::VerifyUserRequest>
+                    for VerifyUserSvc<T> {
+                        type Response = super::VerifyUserResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::VerifyUserRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as UserService>::verify_user(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = VerifyUserSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

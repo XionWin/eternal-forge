@@ -27,10 +27,37 @@ impl crate::domain::service::UserService for UserService {
         locale: i32,
         avatar: &str,
         signature: &str,
-    ) -> Result<Uuid, ArcaneVaultError> {
+    ) -> Result<String, ArcaneVaultError> {
         let sql_statement = r#"
             SELECT func_create_user(
                 $1, $2, $3, $4, $5, $6, $7, $8
+            ) AS verification_code
+        "#;
+        let verification_code = self
+            .db_context
+            .get_repository()
+            .await
+            .query_one(
+                sql_statement,
+                &[
+                    &email, &password, &firstname, &lastname, &gender, &locale, &avatar, &signature,
+                ],
+                get_verification_code_from_row,
+            )
+            .await?;
+
+        Ok(verification_code)
+    }
+    
+    async fn verify_user(
+        &self,
+        email: &str,
+        password: &str,
+        verification_code: &str,
+    ) -> Result<Uuid, ArcaneVaultError> {
+        let sql_statement = r#"
+            SELECT func_verify_user(
+                $1, $2, $3
             ) AS user_id
         "#;
         let user_id = self
@@ -40,7 +67,7 @@ impl crate::domain::service::UserService for UserService {
             .query_one(
                 sql_statement,
                 &[
-                    &email, &password, &firstname, &lastname, &gender, &locale, &avatar, &signature,
+                    &email, &password, &email, &password, &verification_code
                 ],
                 get_user_id_from_row,
             )
@@ -89,6 +116,11 @@ impl crate::domain::service::UserService for UserService {
             Err(e) => Err(e.into()),
         }
     }
+}
+
+fn get_verification_code_from_row(row: &tokio_postgres::Row) -> String {
+    let verification_code: String = row.get("verification_code");
+    verification_code
 }
 
 fn get_user_id_from_row(row: &tokio_postgres::Row) -> Uuid {

@@ -15,6 +15,12 @@ pub trait UserService: Sync + Send {
         locale: i32,
         avatar: &str,
         signature: &str,
+    ) -> Result<String, ArcaneVaultError>;
+    async fn verify_user(
+        &self,
+        email: &str,
+        password: &str,
+        verification_code: &str,
     ) -> Result<Uuid, ArcaneVaultError>;
 
     async fn query_user_by_id(

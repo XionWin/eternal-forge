@@ -1,9 +1,7 @@
 use ethereal_core::proto::{
-    CreateUserRequest, CreateUserResponse, QueryUserRequest, QueryUserResponse,
-    query_user_request::Identity,
+    query_user_request::Identity, CreateUserRequest, CreateUserResponse, QueryUserRequest, QueryUserResponse, VerifyUserRequest, VerifyUserResponse
 };
 use uuid::Uuid;
-
 pub struct UserService {
     valut_signup_service: Box<dyn arcane_vault::domain::service::UserService>,
 }
@@ -40,8 +38,32 @@ impl ethereal_core::proto::user_service_server::UserService for UserService {
             )
             .await;
         match result {
-            Ok(user_id) => Ok(tonic::Response::new(CreateUserResponse {
-                id: user_id.to_string(),
+            Ok(verification_code) => Ok(tonic::Response::new(CreateUserResponse {
+                verification_code,
+            })),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    
+    async fn verify_user(
+        &self,
+        request: tonic::Request<VerifyUserRequest>,
+    ) -> std::result::Result<tonic::Response<VerifyUserResponse>, tonic::Status> {
+        let request = request.into_inner();
+        let email: String = request.email;
+        let password: String = request.password;
+        let verify_code: String = request.verify_code;
+
+        let result = self
+            .valut_signup_service
+            .verify_user(
+                &email, &password, &verify_code
+            )
+            .await;
+        match result {
+            Ok(user_id) => Ok(tonic::Response::new(VerifyUserResponse {
+                user_id: user_id.to_string(),
             })),
             Err(err) => Err(err.into()),
         }
