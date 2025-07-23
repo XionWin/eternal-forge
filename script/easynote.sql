@@ -201,7 +201,7 @@ CREATE OR REPLACE FUNCTION func_verify_user (
 	p_password VARCHAR,
     p_verification_code VARCHAR
 )
-RETURNS VARCHAR
+RETURNS UUID
 AS $$
 DECLARE
     v_user_id UUID;
@@ -248,7 +248,7 @@ BEGIN
     DELETE FROM user_staging
     WHERE email_account = v_staging.email_account;
 	
-    RETURN v_user_id::VARCHAR;
+    RETURN v_user_id::UUID;
 END;
 $$ LANGUAGE plpgsql;
 

@@ -29,7 +29,7 @@ impl crate::domain::service::UserService for UserService {
         signature: &str,
     ) -> Result<String, ArcaneVaultError> {
         let sql_statement = r#"
-            SELECT func_create_user(
+            SELECT func_register_user(
                 $1, $2, $3, $4, $5, $6, $7, $8
             ) AS verification_code
         "#;
@@ -67,7 +67,7 @@ impl crate::domain::service::UserService for UserService {
             .query_one(
                 sql_statement,
                 &[
-                    &email, &password, &email, &password, &verification_code
+                    &email, &password, &verification_code
                 ],
                 get_user_id_from_row,
             )

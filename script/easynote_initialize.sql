@@ -16,7 +16,7 @@ SELECT * FROM user_staging;
 SELECT * FROM func_verify_user(
     'puppywin@163.com',
     'Wenxuan815',
-    '0653'
+    '9366'
 );
 
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
