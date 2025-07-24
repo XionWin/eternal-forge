@@ -119,13 +119,11 @@ impl crate::domain::service::UserService for UserService {
 }
 
 fn get_verification_code_from_row(row: &tokio_postgres::Row) -> String {
-    let verification_code: String = row.get("verification_code");
-    verification_code
+    row.get("verification_code")
 }
 
 fn get_user_id_from_row(row: &tokio_postgres::Row) -> Uuid {
-    let user_id: Uuid = row.get("user_id");
-    user_id
+    row.get("user_id")
 }
 
 fn get_user_from_row(row: &tokio_postgres::Row) -> User {
