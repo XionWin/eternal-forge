@@ -117,7 +117,7 @@ CREATE TABLE user_profiles (
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
 
-CREATE OR REPLACE FUNCTION func_generate_verification_code()
+CREATE OR REPLACE FUNCTION util_generate_verification_code()
 RETURNS VARCHAR
 LANGUAGE plpgsql
 AS $$
@@ -129,7 +129,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION func_verify_email_account (
+CREATE OR REPLACE FUNCTION util_verify_email_account (
     p_email_account VARCHAR
 )
 RETURNS BOOLEAN
@@ -160,11 +160,11 @@ AS $$
 DECLARE
     v_code VARCHAR;
 BEGIN
-	IF NOT func_verify_email_account(p_email_account) THEN
+	IF NOT util_verify_email_account(p_email_account) THEN
         RAISE EXCEPTION 'Email account % is already in use.', p_email_account;
     END IF;
 
-	v_code := func_generate_verification_code();
+	v_code := util_generate_verification_code();
 
     INSERT INTO user_staging (
         email_account,
@@ -249,6 +249,43 @@ BEGIN
     WHERE email_account = v_staging.email_account;
 	
     RETURN v_user_id::UUID;
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION func_login_user (
+    p_email_account VARCHAR,
+	p_password VARCHAR
+)
+RETURNS TABLE (
+	code INTEGER,
+    user_id UUID
+)
+AS $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+	RETURN QUERY
+    SELECT 0 AS code, user_id::UUID
+    FROM users
+    WHERE email_account = p_email_account
+      AND password = crypt(p_password, password)
+    LIMIT 1;
+    IF FOUND THEN
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    SELECT 1 AS code, NULL::UUID
+    FROM user_staging
+    WHERE email_account = p_email_account
+    LIMIT 1;
+    IF FOUND THEN
+        RETURN;
+    END IF;
+	
+    RETURN QUERY
+    SELECT -1 AS code, NULL::UUID;
 END;
 $$ LANGUAGE plpgsql;
 
