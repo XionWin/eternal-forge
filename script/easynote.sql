@@ -1,12 +1,13 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-DROP TABLE IF EXISTS user_staging;
+DROP TABLE IF EXISTS pending_users;
 DROP TABLE IF EXISTS user_profiles;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS genders;
 DROP TABLE IF EXISTS roles;
 DROP TABLE IF EXISTS user_statuses;
 DROP TABLE IF EXISTS locales;
+DROP TABLE IF EXISTS reset_password_staging;
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -73,10 +74,10 @@ INSERT INTO locales (
     NOW()
 );
 
-CREATE TABLE user_staging (
+CREATE TABLE pending_users (
 	email_account VARCHAR(255) PRIMARY KEY,
 	password VARCHAR(255) NOT NULL,
-	verification_code VARCHAR(4) NOT NULL,
+	verification_code VARCHAR(6) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	last_login_at TIMESTAMPTZ DEFAULT NULL,
@@ -117,17 +118,39 @@ CREATE TABLE user_profiles (
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
 
+CREATE TABLE reset_password_staging (
+	email_account VARCHAR(255) PRIMARY KEY,
+	verification_code VARCHAR(6) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION util_raise_error(
+    p_errcode TEXT,
+    p_message TEXT
+) RETURNS void AS $$
+BEGIN
+    RAISE EXCEPTION USING 
+        MESSAGE = p_message,
+        ERRCODE = p_errcode;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION util_generate_verification_code()
 RETURNS VARCHAR
-LANGUAGE plpgsql
 AS $$
 DECLARE
-    result VARCHAR;
+	-- REMOVE 'I', 'O', '1', '0'
+    chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    i INT;
+    result VARCHAR:= '';
 BEGIN
-    result := LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
-    RETURN result;
+    FOR i IN 1..6 LOOP
+        result := result || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+    END LOOP;
+	RETURN result;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION util_verify_email_account (
     p_email_account VARCHAR
@@ -138,7 +161,7 @@ DECLARE
     is_available BOOLEAN;
 BEGIN
 	is_available :=  NOT (
-		EXISTS (SELECT 1 FROM user_staging WHERE email_account = p_email_account)
+		EXISTS (SELECT 1 FROM pending_users WHERE email_account = p_email_account)
        	OR EXISTS (SELECT 1 FROM users WHERE email_account = p_email_account)
    );
 	RETURN is_available;
@@ -161,12 +184,12 @@ DECLARE
     v_code VARCHAR;
 BEGIN
 	IF NOT util_verify_email_account(p_email_account) THEN
-        RAISE EXCEPTION 'Email account % is already in use.', p_email_account;
+	    PERFORM util_raise_error('P0003', format('Email account %s is already in use.', p_email_account));
     END IF;
 
 	v_code := util_generate_verification_code();
 
-    INSERT INTO user_staging (
+    INSERT INTO pending_users (
         email_account,
         password,
 		verification_code,
@@ -205,14 +228,14 @@ RETURNS UUID
 AS $$
 DECLARE
     v_user_id UUID;
-    v_staging user_staging%ROWTYPE;
+    v_pending_user pending_users%ROWTYPE;
 BEGIN
 	SELECT *
-    INTO v_staging
-    FROM user_staging
+    INTO v_pending_user
+    FROM pending_users
     WHERE email_account = p_email_account
-      AND crypt(p_password, password) = password
-      AND verification_code = p_verification_code;
+		AND crypt(p_password, password) = password
+    	AND verification_code = UPPER(p_verification_code);
 	  
 	IF NOT FOUND THEN
         RETURN NULL;
@@ -223,11 +246,11 @@ BEGIN
         status, role,
         created_at, updated_at, last_login_at
     ) VALUES (
-        v_staging.email_account,
-        v_staging.password,
+        v_pending_user.email_account,
+        v_pending_user.password,
         1,
         2,
-        v_staging.created_at, now(), now()
+        v_pending_user.created_at, now(), now()
     )
     RETURNING id INTO v_user_id;
 	
@@ -237,16 +260,16 @@ BEGIN
         avatar, signature
     ) VALUES (
         v_user_id,
-        v_staging.firstname,
-        v_staging.lastname,
-        v_staging.gender,
-        v_staging.locale,
-        v_staging.avatar,
-        v_staging.signature
+        v_pending_user.firstname,
+        v_pending_user.lastname,
+        v_pending_user.gender,
+        v_pending_user.locale,
+        v_pending_user.avatar,
+        v_pending_user.signature
     );
 	
-    DELETE FROM user_staging
-    WHERE email_account = v_staging.email_account;
+    DELETE FROM pending_users
+    WHERE email_account = v_pending_user.email_account;
 	
     RETURN v_user_id::UUID;
 END;
@@ -277,7 +300,7 @@ BEGIN
 
     RETURN QUERY
     SELECT 1 AS code, NULL::UUID
-    FROM user_staging
+    FROM pending_users
     WHERE email_account = p_email_account
     LIMIT 1;
     IF FOUND THEN
@@ -286,6 +309,40 @@ BEGIN
 	
     RETURN QUERY
     SELECT -1 AS code, NULL::UUID;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_regenerate_verification_code (
+    p_email_account VARCHAR
+)
+RETURNS VARCHAR
+AS $$
+DECLARE
+    v_code VARCHAR;
+BEGIN
+	IF NOT EXISTS (
+	    SELECT 1
+	    FROM pending_users
+	    WHERE email_account = p_email_account
+	) THEN
+	    PERFORM util_raise_error('P0001', format('Email account %s does not exist.', p_email_account));
+	END IF;
+	
+	IF EXISTS (
+        SELECT 1
+        FROM pending_users
+        WHERE email_account = p_email_account
+        	AND now() - updated_at < interval '5 minutes'
+    ) THEN
+        PERFORM util_raise_error('P0002', format('Verification code was recently generated. Please wait before requesting again.'));
+    END IF;
+	
+	v_code := util_generate_verification_code();
+	UPDATE pending_users
+	SET verification_code = v_code, updated_at = now()
+	WHERE email_account = p_email_account;
+	
+	RETURN v_code;
 END;
 $$ LANGUAGE plpgsql;
 

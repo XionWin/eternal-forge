@@ -1,4 +1,6 @@
-SELECT * FROM func_verify_email_account('puppywin@163.com');
+SELECT * FROM util_verify_email_account('puppywin@163.com');
+
+SELECT * FROM util_generate_verification_code();
 
 SELECT * FROM func_register_user(
     'puppywin@163.com',
@@ -8,19 +10,23 @@ SELECT * FROM func_register_user(
     1,
     1,
     'https://avatar.com/link',
-    'Hello'
+    'My signature'
 );
 
-SELECT * FROM user_staging;
+SELECT * FROM func_regenerate_verification_code('puppywin@163.com');
+
+SELECT * FROM pending_users;
 
 SELECT * FROM func_verify_user(
     'puppywin@163.com',
     'Wenxuan815',
-    '9366'
+    (SELECT verification_code FROM pending_users WHERE email_account = 'puppywin@163.com')
 );
 
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
 
-SELECT * FROM func_query_user_by_id('7b5e73b5-70c2-43dd-8224-dfa23d5573d4');
+SELECT * FROM func_query_user_by_id(
+	(SELECT id FROM users WHERE email_account = 'puppywin@163.com')
+);
 
 SELECT * FROM func_query_user_by_email_account('puppywin@163.com');
