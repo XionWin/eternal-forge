@@ -140,7 +140,7 @@ CREATE OR REPLACE FUNCTION util_generate_verification_code()
 RETURNS VARCHAR
 AS $$
 DECLARE
-	-- REMOVE 'I', 'O', '1', '0'
+	-- remove 'I', 'O', '1', '0' to minimize ambiguity and improve readability
     chars TEXT := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     i INT;
     result VARCHAR:= '';
@@ -227,7 +227,7 @@ CREATE OR REPLACE FUNCTION func_verify_user (
 RETURNS UUID
 AS $$
 DECLARE
-    v_user_id UUID;
+    v_id UUID;
     v_pending_user pending_users%ROWTYPE;
 BEGIN
 	SELECT *
@@ -252,14 +252,14 @@ BEGIN
         2,
         v_pending_user.created_at, now(), now()
     )
-    RETURNING id INTO v_user_id;
+    RETURNING id INTO v_id;
 	
     INSERT INTO user_profiles (
         id, firstname, lastname,
         gender, locale,
         avatar, signature
     ) VALUES (
-        v_user_id,
+        v_id,
         v_pending_user.firstname,
         v_pending_user.lastname,
         v_pending_user.gender,
@@ -271,44 +271,7 @@ BEGIN
     DELETE FROM pending_users
     WHERE account = v_pending_user.account;
 	
-    RETURN v_user_id::UUID;
-END;
-$$ LANGUAGE plpgsql;
-
-
-CREATE OR REPLACE FUNCTION func_login_user (
-    p_account VARCHAR,
-	p_password VARCHAR
-)
-RETURNS TABLE (
-	code INTEGER,
-    user_id UUID
-)
-AS $$
-DECLARE
-    v_user_id UUID;
-BEGIN
-	RETURN QUERY
-    SELECT 0 AS code, user_id::UUID
-    FROM users
-    WHERE account = p_account
-      AND password = crypt(p_password, password)
-    LIMIT 1;
-    IF FOUND THEN
-        RETURN;
-    END IF;
-
-    RETURN QUERY
-    SELECT 1 AS code, NULL::UUID
-    FROM pending_users
-    WHERE account = p_account
-    LIMIT 1;
-    IF FOUND THEN
-        RETURN;
-    END IF;
-	
-    RETURN QUERY
-    SELECT -1 AS code, NULL::UUID;
+    RETURN v_id::UUID;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -345,6 +308,43 @@ BEGIN
 	RETURN v_code;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_login_user (
+    p_account VARCHAR,
+	p_password VARCHAR
+)
+RETURNS TABLE (
+	code INTEGER,
+    id UUID
+)
+AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+	RETURN QUERY
+    SELECT 0 AS code, users.id::UUID
+    FROM users
+    WHERE account = p_account
+      AND password = crypt(p_password, password)
+    LIMIT 1;
+    IF FOUND THEN
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    SELECT 1 AS code, NULL::UUID
+    FROM pending_users
+    WHERE account = p_account
+    LIMIT 1;
+    IF FOUND THEN
+        RETURN;
+    END IF;
+	
+    RETURN QUERY
+    SELECT -1 AS code, NULL::UUID;
+END;
+$$ LANGUAGE plpgsql;
+
 
 
 CREATE OR REPLACE FUNCTION func_query_user_by_id(

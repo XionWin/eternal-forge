@@ -13,8 +13,6 @@ SELECT * FROM func_register_user(
     'My signature'
 );
 
-SELECT * FROM func_regenerate_verification_code('puppywin@163.com');
-
 SELECT * FROM pending_users;
 
 SELECT * FROM func_verify_user(
@@ -22,6 +20,14 @@ SELECT * FROM func_verify_user(
     'Wenxuan815',
     (SELECT verification_code FROM pending_users WHERE account = 'puppywin@163.com')
 );
+
+SELECT * FROM func_login_user(
+    'puppywin@163.com',
+    'Wenxuan815'
+);
+
+
+SELECT * FROM func_regenerate_verification_code('puppywin@163.com');
 
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
 
