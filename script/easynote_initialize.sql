@@ -1,4 +1,4 @@
-SELECT * FROM util_verify_email_account('puppywin@163.com');
+SELECT * FROM util_verify_account('puppywin@163.com');
 
 SELECT * FROM util_generate_verification_code();
 
@@ -20,13 +20,13 @@ SELECT * FROM pending_users;
 SELECT * FROM func_verify_user(
     'puppywin@163.com',
     'Wenxuan815',
-    (SELECT verification_code FROM pending_users WHERE email_account = 'puppywin@163.com')
+    (SELECT verification_code FROM pending_users WHERE account = 'puppywin@163.com')
 );
 
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
 
 SELECT * FROM func_query_user_by_id(
-	(SELECT id FROM users WHERE email_account = 'puppywin@163.com')
+	(SELECT id FROM users WHERE account = 'puppywin@163.com')
 );
 
-SELECT * FROM func_query_user_by_email_account('puppywin@163.com');
+SELECT * FROM func_query_user_by_account('puppywin@163.com');

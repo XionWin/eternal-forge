@@ -75,7 +75,7 @@ INSERT INTO locales (
 );
 
 CREATE TABLE pending_users (
-	email_account VARCHAR(255) PRIMARY KEY,
+	account VARCHAR(255) PRIMARY KEY,
 	password VARCHAR(255) NOT NULL,
 	verification_code VARCHAR(6) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -93,7 +93,7 @@ CREATE TABLE pending_users (
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email_account VARCHAR(255) NOT NULL UNIQUE,
+    account VARCHAR(255) NOT NULL UNIQUE,
 	password VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -103,7 +103,7 @@ CREATE TABLE users (
     CONSTRAINT fk_status FOREIGN KEY (status) REFERENCES user_statuses(id),
     CONSTRAINT fk_role FOREIGN KEY (role) REFERENCES roles(id)
 );
-CREATE INDEX idx_users_email_account ON users(email_account);
+CREATE INDEX idx_users_account ON users(account);
 
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY,
@@ -119,7 +119,7 @@ CREATE TABLE user_profiles (
 );
 
 CREATE TABLE reset_password_staging (
-	email_account VARCHAR(255) PRIMARY KEY,
+	account VARCHAR(255) PRIMARY KEY,
 	verification_code VARCHAR(6) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -152,8 +152,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION util_verify_email_account (
-    p_email_account VARCHAR
+CREATE OR REPLACE FUNCTION util_verify_account (
+    p_account VARCHAR
 )
 RETURNS BOOLEAN
 AS $$
@@ -161,15 +161,15 @@ DECLARE
     is_available BOOLEAN;
 BEGIN
 	is_available :=  NOT (
-		EXISTS (SELECT 1 FROM pending_users WHERE email_account = p_email_account)
-       	OR EXISTS (SELECT 1 FROM users WHERE email_account = p_email_account)
+		EXISTS (SELECT 1 FROM pending_users WHERE account = p_account)
+       	OR EXISTS (SELECT 1 FROM users WHERE account = p_account)
    );
 	RETURN is_available;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_register_user (
-    p_email_account VARCHAR,
+    p_account VARCHAR,
 	p_password VARCHAR,
     p_firstname VARCHAR,
     p_lastname VARCHAR,
@@ -183,14 +183,14 @@ AS $$
 DECLARE
     v_code VARCHAR;
 BEGIN
-	IF NOT util_verify_email_account(p_email_account) THEN
-	    PERFORM util_raise_error('P0003', format('Email account %s is already in use.', p_email_account));
+	IF NOT util_verify_account(p_account) THEN
+	    PERFORM util_raise_error('P0003', format('Account %s is already in use.', p_account));
     END IF;
 
 	v_code := util_generate_verification_code();
 
     INSERT INTO pending_users (
-        email_account,
+        account,
         password,
 		verification_code,
         created_at,
@@ -202,7 +202,7 @@ BEGIN
         avatar,
         signature
     ) VALUES (
-        p_email_account,
+        p_account,
         crypt(p_password, gen_salt('bf')),
 		v_code,
         now(),
@@ -220,7 +220,7 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION func_verify_user (
-    p_email_account VARCHAR,
+    p_account VARCHAR,
 	p_password VARCHAR,
     p_verification_code VARCHAR
 )
@@ -233,7 +233,7 @@ BEGIN
 	SELECT *
     INTO v_pending_user
     FROM pending_users
-    WHERE email_account = p_email_account
+    WHERE account = p_account
 		AND crypt(p_password, password) = password
     	AND verification_code = UPPER(p_verification_code);
 	  
@@ -242,11 +242,11 @@ BEGIN
     END IF;
 
 	INSERT INTO users (
-        email_account, password,
+        account, password,
         status, role,
         created_at, updated_at, last_login_at
     ) VALUES (
-        v_pending_user.email_account,
+        v_pending_user.account,
         v_pending_user.password,
         1,
         2,
@@ -269,7 +269,7 @@ BEGIN
     );
 	
     DELETE FROM pending_users
-    WHERE email_account = v_pending_user.email_account;
+    WHERE account = v_pending_user.account;
 	
     RETURN v_user_id::UUID;
 END;
@@ -277,7 +277,7 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION func_login_user (
-    p_email_account VARCHAR,
+    p_account VARCHAR,
 	p_password VARCHAR
 )
 RETURNS TABLE (
@@ -291,7 +291,7 @@ BEGIN
 	RETURN QUERY
     SELECT 0 AS code, user_id::UUID
     FROM users
-    WHERE email_account = p_email_account
+    WHERE account = p_account
       AND password = crypt(p_password, password)
     LIMIT 1;
     IF FOUND THEN
@@ -301,7 +301,7 @@ BEGIN
     RETURN QUERY
     SELECT 1 AS code, NULL::UUID
     FROM pending_users
-    WHERE email_account = p_email_account
+    WHERE account = p_account
     LIMIT 1;
     IF FOUND THEN
         RETURN;
@@ -313,7 +313,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_regenerate_verification_code (
-    p_email_account VARCHAR
+    p_account VARCHAR
 )
 RETURNS VARCHAR
 AS $$
@@ -323,15 +323,15 @@ BEGIN
 	IF NOT EXISTS (
 	    SELECT 1
 	    FROM pending_users
-	    WHERE email_account = p_email_account
+	    WHERE account = p_account
 	) THEN
-	    PERFORM util_raise_error('P0001', format('Email account %s does not exist.', p_email_account));
+		PERFORM util_raise_error('P0001', format('Account %s does not exist.', p_account));
 	END IF;
 	
 	IF EXISTS (
         SELECT 1
         FROM pending_users
-        WHERE email_account = p_email_account
+        WHERE account = p_account
         	AND now() - updated_at < interval '5 minutes'
     ) THEN
         PERFORM util_raise_error('P0002', format('Verification code was recently generated. Please wait before requesting again.'));
@@ -340,7 +340,7 @@ BEGIN
 	v_code := util_generate_verification_code();
 	UPDATE pending_users
 	SET verification_code = v_code, updated_at = now()
-	WHERE email_account = p_email_account;
+	WHERE account = p_account;
 	
 	RETURN v_code;
 END;
@@ -351,7 +351,7 @@ CREATE OR REPLACE FUNCTION func_query_user_by_id(
     p_id UUID
 ) RETURNS TABLE (
 	id UUID,
-    email_account VARCHAR,
+    account VARCHAR,
 	created_at TIMESTAMPTZ,
 	updated_at TIMESTAMPTZ,
 	last_login_at TIMESTAMPTZ,
@@ -369,7 +369,7 @@ BEGIN
     RETURN QUERY
     SELECT
 		u.id,
-        u.email_account,
+        u.account,
         u.created_at,
         u.updated_at,
 		u.last_login_at,
@@ -388,11 +388,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION func_query_user_by_email_account(
-    p_email_account VARCHAR
+CREATE OR REPLACE FUNCTION func_query_user_by_account(
+    p_account VARCHAR
 ) RETURNS TABLE (
 	id UUID,
-    email_account VARCHAR,
+    account VARCHAR,
 	created_at TIMESTAMPTZ,
 	updated_at TIMESTAMPTZ,
 	last_login_at TIMESTAMPTZ,
@@ -409,7 +409,7 @@ BEGIN
     RETURN QUERY
     SELECT
 		u.id,
-        u.email_account,
+        u.account,
         u.created_at,
         u.updated_at,
 		u.last_login_at,
@@ -423,7 +423,7 @@ BEGIN
         up.signature
     FROM users u
     JOIN user_profiles up ON u.id = up.id
-    WHERE u.email_account = p_email_account;
+    WHERE u.account = p_account;
 END;
 $$ LANGUAGE plpgsql;
 
