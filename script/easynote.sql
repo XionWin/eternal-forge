@@ -1,13 +1,20 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-DROP TABLE IF EXISTS pending_users;
-DROP TABLE IF EXISTS user_profiles;
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS genders;
-DROP TABLE IF EXISTS roles;
-DROP TABLE IF EXISTS user_statuses;
-DROP TABLE IF EXISTS locales;
-DROP TABLE IF EXISTS reset_password_staging;
+DROP TYPE IF EXISTS login_status CASCADE;
+CREATE TYPE login_status AS ENUM (
+    'SUCCESS',
+    'PENDING',
+    'NOT_FOUND'
+);
+
+DROP TABLE IF EXISTS pending_reset_passwords CASCADE;
+DROP TABLE IF EXISTS pending_users CASCADE;
+DROP TABLE IF EXISTS user_profiles CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS genders CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS user_statuses CASCADE;
+DROP TABLE IF EXISTS locales CASCADE;
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -43,7 +50,7 @@ INSERT INTO user_statuses (id, name, description) VALUES
 
 CREATE TABLE locales (
     id INTEGER PRIMARY KEY,
-    language_code CHAR(2) NOT NULL,
+    language_code VARCHAR(10) NOT NULL,
     locale_code VARCHAR(10) NOT NULL UNIQUE,
     name_en VARCHAR(100) NOT NULL,
     native_name VARCHAR(100) NOT NULL,
@@ -100,10 +107,9 @@ CREATE TABLE users (
 	last_login_at TIMESTAMPTZ DEFAULT NULL,
     status INTEGER NOT NULL,
     role INTEGER NOT NULL,
-    CONSTRAINT fk_status FOREIGN KEY (status) REFERENCES user_statuses(id),
-    CONSTRAINT fk_role FOREIGN KEY (role) REFERENCES roles(id)
+    CONSTRAINT fk_users_status FOREIGN KEY (status) REFERENCES user_statuses(id),
+    CONSTRAINT fk_users_role FOREIGN KEY (role) REFERENCES roles(id)
 );
-CREATE INDEX idx_users_account ON users(account);
 
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY,
@@ -113,16 +119,17 @@ CREATE TABLE user_profiles (
     locale INTEGER NOT NULL,
     avatar VARCHAR(255),
     signature VARCHAR(255),
-	CONSTRAINT fk_id FOREIGN KEY (id) REFERENCES users(id),
-	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id),
-	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
+	CONSTRAINT fk_user_profiles_id FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE,
+	CONSTRAINT fk_user_profiles_gender FOREIGN KEY (gender) REFERENCES genders(id),
+	CONSTRAINT fk_user_profiles_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
 
-CREATE TABLE reset_password_staging (
+CREATE TABLE pending_reset_passwords (
 	account VARCHAR(255) PRIMARY KEY,
 	verification_code VARCHAR(6) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	CONSTRAINT fk_pending_reset_passwords_account FOREIGN KEY (account) REFERENCES users(account)
 );
 
 CREATE OR REPLACE FUNCTION util_raise_error(
@@ -314,7 +321,7 @@ CREATE OR REPLACE FUNCTION func_login_user (
 	p_password VARCHAR
 )
 RETURNS TABLE (
-	code INTEGER,
+	code login_status,
     id UUID
 )
 AS $$
@@ -322,7 +329,7 @@ DECLARE
     v_id UUID;
 BEGIN
 	RETURN QUERY
-    SELECT 0 AS code, users.id::UUID
+    SELECT 'SUCCESS'::login_status AS code, users.id::UUID
     FROM users
     WHERE account = p_account
       AND password = crypt(p_password, password)
@@ -332,7 +339,7 @@ BEGIN
     END IF;
 
     RETURN QUERY
-    SELECT 1 AS code, NULL::UUID
+    SELECT 'PENDING'::login_status AS code, NULL::UUID
     FROM pending_users
     WHERE account = p_account
     LIMIT 1;
@@ -341,11 +348,75 @@ BEGIN
     END IF;
 	
     RETURN QUERY
-    SELECT -1 AS code, NULL::UUID;
+    SELECT 'NOT_FOUND'::login_status AS code, NULL::UUID;
 END;
 $$ LANGUAGE plpgsql;
 
 
+CREATE OR REPLACE FUNCTION func_reset_password (
+    p_account VARCHAR
+)
+RETURNS VARCHAR
+AS $$
+DECLARE
+    v_code VARCHAR;
+BEGIN
+	 IF NOT EXISTS (
+        SELECT 1 FROM users WHERE account = p_account
+    ) THEN
+        PERFORM util_raise_error('P0001', format('Account %s does not exist.', p_account));
+    END IF;
+
+	IF EXISTS (
+        SELECT 1 
+        FROM pending_reset_passwords 
+        WHERE account = p_account
+    ) THEN
+        IF EXISTS (
+            SELECT 1
+            FROM pending_reset_passwords
+            WHERE account = p_account
+              AND now() - updated_at < interval '5 minutes'
+        ) THEN
+            PERFORM util_raise_error('P0002', format('Reset code was recently generated for %s. Please wait before requesting again.', p_account));
+        END IF;
+
+        v_code := util_generate_verification_code();
+        UPDATE pending_reset_passwords
+        SET verification_code = v_code,
+            updated_at = now()
+        WHERE account = p_account;
+
+    ELSE
+        v_code := util_generate_verification_code();
+        INSERT INTO pending_reset_passwords (
+            account,
+            verification_code,
+            created_at,
+            updated_at
+        ) VALUES (
+            p_account,
+            v_code,
+            now(),
+            now()
+        );
+    END IF;
+
+    RETURN v_code;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION cron_func_cleanup_pending_records(
+) RETURNS void
+AS $$
+BEGIN
+	DELETE FROM pending_users
+    WHERE updated_at < NOW() - INTERVAL '24 hours';
+
+    DELETE FROM pending_reset_passwords
+    WHERE updated_at < NOW() - INTERVAL '24 hours';
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_query_user_by_id(
     p_id UUID
