@@ -1,11 +1,11 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-DROP TYPE IF EXISTS login_status CASCADE;
-CREATE TYPE login_status AS ENUM (
-    'SUCCESS',
-    'PENDING',
-    'NOT_FOUND'
-);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'login_status') THEN
+        CREATE TYPE login_status AS ENUM ('SUCCESS', 'PENDING', 'NOT_FOUND');
+    END IF;
+END$$;
 
 DROP TABLE IF EXISTS pending_reset_passwords CASCADE;
 DROP TABLE IF EXISTS pending_users CASCADE;
@@ -15,6 +15,23 @@ DROP TABLE IF EXISTS genders CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
 DROP TABLE IF EXISTS user_statuses CASCADE;
 DROP TABLE IF EXISTS locales CASCADE;
+DROP TABLE IF EXISTS error_codes CASCADE;
+
+
+CREATE TABLE error_codes (
+    errcode TEXT PRIMARY KEY,
+    param_count INT NOT NULL,
+    message_template TEXT NOT NULL
+);
+INSERT INTO error_codes (errcode, param_count, message_template) VALUES
+('P0001', 1, 'Account %s is not available.'),
+('P0002', 1, 'Account %s was not registered.'),
+('P0003', 1, 'Verification code was recently generated for account %s. Please wait before requesting again.'),
+('P0004', 1, 'Account %s is not found.'),
+('P0005', 1, 'Reset code was recently generated for account %s. Please wait before requesting again.'),
+('P0006', 1, 'No reset request found for account %s.'),
+('P0007', 0, 'Invalid verification code.'),
+('P0008', 0, 'Verification code expired.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -134,12 +151,28 @@ CREATE TABLE pending_reset_passwords (
 
 CREATE OR REPLACE FUNCTION util_raise_error(
     p_errcode TEXT,
-    p_message TEXT
+    VARIADIC p_args TEXT[]
 ) RETURNS void AS $$
+DECLARE
+    v_template TEXT;
+    v_param_count INT;
 BEGIN
-    RAISE EXCEPTION USING 
-        MESSAGE = p_message,
-        ERRCODE = p_errcode;
+    SELECT message_template, param_count
+    INTO v_template, v_param_count
+    FROM error_codes
+    WHERE errcode = p_errcode;
+
+    IF v_template IS NULL THEN
+        RAISE EXCEPTION 'Unknown error code: %', p_errcode;
+    END IF;
+
+    IF array_length(p_args, 1) <> v_param_count THEN
+        RAISE EXCEPTION 'Incorrect number of arguments for error code %: expected %, got %',
+            p_errcode, v_param_count, array_length(p_args, 1);
+    END IF;
+
+    RAISE EXCEPTION '%', format(v_template, VARIADIC p_args)
+        USING HINT = p_errcode;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -191,7 +224,7 @@ DECLARE
     v_code VARCHAR;
 BEGIN
 	IF NOT util_verify_account(p_account) THEN
-	    PERFORM util_raise_error('P0003', format('Account %s is already in use.', p_account));
+	    PERFORM util_raise_error('P0001', p_account);
     END IF;
 
 	v_code := util_generate_verification_code();
@@ -295,7 +328,7 @@ BEGIN
 	    FROM pending_users
 	    WHERE account = p_account
 	) THEN
-		PERFORM util_raise_error('P0001', format('Account %s does not exist.', p_account));
+		PERFORM util_raise_error('P0002', p_account);
 	END IF;
 	
 	IF EXISTS (
@@ -304,7 +337,7 @@ BEGIN
         WHERE account = p_account
         	AND now() - updated_at < interval '5 minutes'
     ) THEN
-        PERFORM util_raise_error('P0002', format('Verification code was recently generated. Please wait before requesting again.'));
+        PERFORM util_raise_error('P0003', p_account);
     END IF;
 	
 	v_code := util_generate_verification_code();
@@ -352,22 +385,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
-CREATE OR REPLACE FUNCTION func_reset_password (
+CREATE OR REPLACE FUNCTION func_request_reset_password (
     p_account VARCHAR
 )
-RETURNS VARCHAR
+RETURNS TEXT
 AS $$
 DECLARE
-    v_code VARCHAR;
+    v_code TEXT;
 BEGIN
-	 IF NOT EXISTS (
+    IF NOT EXISTS (
         SELECT 1 FROM users WHERE account = p_account
     ) THEN
-        PERFORM util_raise_error('P0001', format('Account %s does not exist.', p_account));
+        PERFORM util_raise_error('P0004', p_account);
     END IF;
 
-	IF EXISTS (
+    IF EXISTS (
         SELECT 1 
         FROM pending_reset_passwords 
         WHERE account = p_account
@@ -378,7 +410,7 @@ BEGIN
             WHERE account = p_account
               AND now() - updated_at < interval '5 minutes'
         ) THEN
-            PERFORM util_raise_error('P0002', format('Reset code was recently generated for %s. Please wait before requesting again.', p_account));
+            PERFORM util_raise_error('P0005', p_account);
         END IF;
 
         v_code := util_generate_verification_code();
@@ -405,6 +437,48 @@ BEGIN
     RETURN v_code;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_reset_password (
+    p_account VARCHAR,
+    p_verification_code VARCHAR,
+	p_new_password VARCHAR
+)
+RETURNS void
+AS $$
+DECLARE
+    v_row pending_reset_passwords%ROWTYPE;
+BEGIN
+    -- 检查是否存在重置请求
+    SELECT *
+    INTO v_row
+    FROM pending_reset_passwords
+    WHERE account = p_account;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0006', p_account);
+    END IF;
+
+    -- 校验验证码
+    IF v_row.verification_code <> p_verification_code THEN
+        PERFORM util_raise_error('P0007');
+    END IF;
+
+    -- 检查是否过期（比如 15 分钟有效）
+    IF now() - v_row.updated_at > interval '15 minutes' THEN
+        PERFORM util_raise_error('P0008');
+    END IF;
+
+	-- 更新密码
+    UPDATE users
+	SET password = crypt(p_new_password, gen_salt('bf')),
+	    updated_at = now()
+	WHERE account = p_account;
+
+    -- 删除 pending 记录
+    DELETE FROM pending_reset_passwords WHERE account = p_account;
+END;
+$$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION cron_func_cleanup_pending_records(
 ) RETURNS void
