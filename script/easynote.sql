@@ -1,11 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'login_status') THEN
-        CREATE TYPE login_status AS ENUM ('SUCCESS', 'PENDING', 'NOT_FOUND');
-    END IF;
-END$$;
 
 DROP TABLE IF EXISTS pending_reset_passwords CASCADE;
 DROP TABLE IF EXISTS pending_users CASCADE;
@@ -18,6 +12,18 @@ DROP TABLE IF EXISTS locales CASCADE;
 DROP TABLE IF EXISTS error_codes CASCADE;
 
 
+DROP FUNCTION IF EXISTS func_login_user (
+    p_account VARCHAR,
+	p_password VARCHAR
+);
+DROP TYPE IF EXISTS login_status CASCADE;
+CREATE TYPE login_status AS ENUM (
+	'SUCCESS',
+	'PENDING',
+	'PASSWORD_WRONG',
+	'NOT_FOUND'
+);
+		
 CREATE TABLE error_codes (
     errcode TEXT PRIMARY KEY,
     param_count INT NOT NULL,
@@ -379,6 +385,15 @@ BEGIN
     IF FOUND THEN
         RETURN;
     END IF;
+
+	RETURN QUERY
+    SELECT 'PASSWORD_WRONG'::login_status AS code, NULL::UUID
+    FROM users
+    WHERE account = p_account
+    LIMIT 1;
+    IF FOUND THEN
+        RETURN;
+    END IF;
 	
     RETURN QUERY
     SELECT 'NOT_FOUND'::login_status AS code, NULL::UUID;
@@ -448,7 +463,6 @@ AS $$
 DECLARE
     v_row pending_reset_passwords%ROWTYPE;
 BEGIN
-    -- 检查是否存在重置请求
     SELECT *
     INTO v_row
     FROM pending_reset_passwords
@@ -458,27 +472,22 @@ BEGIN
         PERFORM util_raise_error('P0006', p_account);
     END IF;
 
-    -- 校验验证码
     IF v_row.verification_code <> p_verification_code THEN
         PERFORM util_raise_error('P0007');
     END IF;
 
-    -- 检查是否过期（比如 15 分钟有效）
     IF now() - v_row.updated_at > interval '15 minutes' THEN
         PERFORM util_raise_error('P0008');
     END IF;
 
-	-- 更新密码
     UPDATE users
 	SET password = crypt(p_new_password, gen_salt('bf')),
 	    updated_at = now()
 	WHERE account = p_account;
 
-    -- 删除 pending 记录
     DELETE FROM pending_reset_passwords WHERE account = p_account;
 END;
 $$ LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION cron_func_cleanup_pending_records(
 ) RETURNS void
@@ -491,6 +500,7 @@ BEGIN
     WHERE updated_at < NOW() - INTERVAL '24 hours';
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION func_query_user_by_id(
     p_id UUID
