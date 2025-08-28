@@ -498,7 +498,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION func_change_name(
+CREATE OR REPLACE FUNCTION func_set_password(
+	p_id UUID,
+	p_password VARCHAR
+) RETURNS void
+AS $$
+DECLARE
+    v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('P0001', p_id);
+    END IF;
+	
+    UPDATE users
+	SET password = crypt(p_password, gen_salt('bf')),
+	    updated_at = now()
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('P0009', v_account);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_set_name(
 	p_id UUID,
 	p_first_name VARCHAR,
 	p_last_name VARCHAR
@@ -516,18 +544,90 @@ BEGIN
 	    PERFORM util_raise_error('P0001', p_id);
     END IF;
 	
-    UPDATE user_profiles
+    UPDATE user_profiles up
     SET firstname = p_first_name,
         lastname  = p_last_name
-    WHERE id = p_id;
+	From users u
+	WHERE up.id = u.id
+		AND up.id = p_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('P0009', v_account);
     END IF;
+
+    UPDATE users
+    SET updated_at = now()
+    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION func_change_avatar(
+CREATE OR REPLACE FUNCTION func_set_gender(
+    p_id UUID,
+    p_gender INTEGER
+) RETURNS void
+AS $$
+DECLARE
+    v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0001', p_id);
+    END IF;
+	
+    UPDATE user_profiles up
+    SET gender = p_gender
+	From users u
+	WHERE up.id = u.id
+		AND up.id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('P0009', v_account);
+    END IF;
+
+    UPDATE users
+    SET updated_at = now()
+    WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_set_locale(
+    p_id UUID,
+    p_locale INTEGER
+) RETURNS void
+AS $$
+DECLARE
+    v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0001', p_id);
+    END IF;
+	
+    UPDATE user_profiles up
+    SET locale = p_locale
+	From users u
+	WHERE up.id = u.id
+		AND up.id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('P0009', v_account);
+    END IF;
+
+    UPDATE users
+    SET updated_at = now()
+    WHERE id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_set_avatar(
     p_id UUID,
     p_avatar VARCHAR
 ) RETURNS void
@@ -543,18 +643,24 @@ BEGIN
     IF NOT FOUND THEN
         PERFORM util_raise_error('P0001', p_id);
     END IF;
-
-    UPDATE user_profiles
+	
+    UPDATE user_profiles up
     SET avatar = p_avatar
-    WHERE id = p_id;
+	From users u
+	WHERE up.id = u.id
+		AND up.id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0009', v_account); 
+	    PERFORM util_raise_error('P0009', v_account);
     END IF;
+
+    UPDATE users
+    SET updated_at = now()
+    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION func_change_signature(
+CREATE OR REPLACE FUNCTION func_set_signature(
     p_id UUID,
     p_signature VARCHAR
 ) RETURNS void
@@ -570,14 +676,20 @@ BEGIN
     IF NOT FOUND THEN
         PERFORM util_raise_error('P0001', p_id);
     END IF;
-
-    UPDATE user_profiles
+	
+    UPDATE user_profiles up
     SET signature = p_signature
-    WHERE id = p_id;
+	From users u
+	WHERE up.id = u.id
+		AND up.id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', v_account);
     END IF;
+
+    UPDATE users
+    SET updated_at = now()
+    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
