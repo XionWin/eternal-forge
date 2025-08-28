@@ -37,7 +37,8 @@ INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 ('P0005', 1, 'Reset code was recently generated for account %s. Please wait before requesting again.'),
 ('P0006', 1, 'No reset request found for account %s.'),
 ('P0007', 0, 'Invalid verification code.'),
-('P0008', 0, 'Verification code expired.');
+('P0008', 0, 'Verification code expired.'),
+('P0009', 1, 'User profile with account %s not found.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -497,6 +498,89 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION func_change_name(
+	p_id UUID,
+	p_first_name VARCHAR,
+	p_last_name VARCHAR
+) RETURNS void
+AS $$
+DECLARE
+    v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('P0001', p_id);
+    END IF;
+	
+    UPDATE user_profiles
+    SET firstname = p_first_name,
+        lastname  = p_last_name
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('P0009', v_account);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_change_avatar(
+    p_id UUID,
+    p_avatar VARCHAR
+) RETURNS void
+AS $$
+DECLARE
+    v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0001', p_id);
+    END IF;
+
+    UPDATE user_profiles
+    SET avatar = p_avatar
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0009', v_account); 
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_change_signature(
+    p_id UUID,
+    p_signature VARCHAR
+) RETURNS void
+AS $$
+DECLARE
+    v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0001', p_id);
+    END IF;
+
+    UPDATE user_profiles
+    SET signature = p_signature
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0009', v_account);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION cron_func_cleanup_pending_records(
 ) RETURNS void
 AS $$
@@ -508,7 +592,6 @@ BEGIN
     WHERE updated_at < NOW() - INTERVAL '24 hours';
 END;
 $$ LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION func_query_user_by_id(
     p_id UUID

@@ -38,6 +38,22 @@ SELECT * FROM func_login_user(
 );
 
 
+DO $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    SELECT id
+    INTO v_user_id
+    FROM users
+    WHERE account = 'puppywin@163.com';
+
+    PERFORM func_change_name(v_user_id, 'Jack', 'Wo');
+    PERFORM func_change_avatar(v_user_id, 'https://new_avatar.com');
+    PERFORM func_change_signature(v_user_id, 'My new signature');
+END;
+$$ LANGUAGE plpgsql;
+
+
 SELECT * FROM func_regenerate_verification_code('puppywin@163.com');
 
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
