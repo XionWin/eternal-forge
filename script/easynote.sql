@@ -182,6 +182,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION util_raise_error(
+    p_errcode TEXT
+) RETURNS void AS $$
+BEGIN
+    PERFORM util_raise_error(p_errcode, VARIADIC ARRAY[]::TEXT[]);
+END;
+$$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE FUNCTION util_generate_verification_code()
 RETURNS VARCHAR
 AS $$
