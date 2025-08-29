@@ -80,7 +80,7 @@ CREATE TABLE locales (
     native_name VARCHAR(100) NOT NULL,
     is_rtl BOOLEAN NOT NULL DEFAULT FALSE,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO locales (
     id, language_code, locale_code, name_en, native_name, is_rtl, enabled, created_at
@@ -92,7 +92,7 @@ INSERT INTO locales (
     'English',
     FALSE,
     TRUE,
-    NOW()
+    now()
 ),
 (
     2,
@@ -102,7 +102,7 @@ INSERT INTO locales (
     '简体中文',
     FALSE,
     TRUE,
-    NOW()
+    now()
 );
 
 CREATE TABLE pending_users (
@@ -705,10 +705,10 @@ CREATE OR REPLACE FUNCTION cron_func_cleanup_pending_records(
 AS $$
 BEGIN
 	DELETE FROM pending_users
-    WHERE updated_at < NOW() - INTERVAL '24 hours';
+    WHERE updated_at < now() - INTERVAL '24 hours';
 
     DELETE FROM pending_reset_passwords
-    WHERE updated_at < NOW() - INTERVAL '24 hours';
+    WHERE updated_at < now() - INTERVAL '24 hours';
 END;
 $$ LANGUAGE plpgsql;
 

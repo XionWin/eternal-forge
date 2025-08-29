@@ -64,6 +64,8 @@ SELECT * FROM func_login_user(
 
 SELECT * FROM func_regenerate_verification_code('puppywin@163.com');
 
+SHOW TIMEZONE;
+SET TIME ZONE 'Asia/Shanghai';
 SELECT * FROM users inner join user_profiles on users.id = user_profiles.id;
 
 SELECT * FROM func_query_user_by_id(
