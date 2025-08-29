@@ -35,13 +35,12 @@ INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 ('P0002', 1, 'Account %s was not registered.'),
 ('P0003', 1, 'Verification code was recently generated for account %s. Please wait before requesting again.'),
 ('P0004', 1, 'Account %s is not found.'),
-('P0005', 1, 'Reset code was recently generated for account %s. Please wait before requesting again.'),
 ('P0006', 1, 'No reset request found for account %s.'),
 ('P0007', 0, 'Invalid verification code.'),
 ('P0008', 0, 'Verification code expired.'),
 ('P0009', 1, 'User profile with account %s not found.'),
 ('P0010', 1, 'User id %s not found.'),
-('P0011', 1, 'Verification account %s failed, rolling back.');
+('P0011', 1, 'Verification account %s failed.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -465,7 +464,7 @@ BEGIN
             WHERE id = v_user_id
               AND now() - updated_at < interval '5 minutes'
         ) THEN
-            PERFORM util_raise_error('P0005', p_account);
+            PERFORM util_raise_error('P0003', p_account);
         END IF;
 
         v_code := util_generate_verification_code();
