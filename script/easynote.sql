@@ -376,13 +376,20 @@ AS $$
 DECLARE
     v_id UUID;
 BEGIN
-	RETURN QUERY
-    SELECT 'SUCCESS'::login_status AS code, users.id::UUID
-    FROM users
-    WHERE account = p_account
-      AND password = crypt(p_password, password)
-    LIMIT 1;
+	SELECT users.id INTO v_id
+	FROM users
+	WHERE account = p_account
+	  AND password = crypt(p_password, password)
+	LIMIT 1;
+	
     IF FOUND THEN
+		RETURN QUERY
+	    SELECT 'SUCCESS'::login_status AS code, v_id;
+		
+		UPDATE users
+		SET last_login_at = now()
+		WHERE users.id  = v_id;
+		
         RETURN;
     END IF;
 
