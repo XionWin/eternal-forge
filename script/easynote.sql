@@ -160,11 +160,11 @@ CREATE TABLE user_profiles (
 );
 
 CREATE TABLE pending_reset_passwords (
-	account VARCHAR(255) PRIMARY KEY,
+	id UUID PRIMARY KEY,
 	verification_code VARCHAR(6) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-	CONSTRAINT fk_pending_reset_passwords_account FOREIGN KEY (account) REFERENCES users(account)
+	CONSTRAINT fk_pending_reset_passwords_account FOREIGN KEY (id) REFERENCES users(id)
 );
 
 CREATE OR REPLACE FUNCTION util_raise_error(
@@ -444,23 +444,25 @@ CREATE OR REPLACE FUNCTION func_request_reset_password (
 RETURNS TEXT
 AS $$
 DECLARE
+    v_user_id UUID;
     v_code TEXT;
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM users WHERE account = p_account
-    ) THEN
+    SELECT id INTO v_user_id
+    FROM users
+    WHERE account = p_account;
+    IF NOT FOUND THEN
         PERFORM util_raise_error('P0004', p_account);
     END IF;
 
     IF EXISTS (
         SELECT 1 
         FROM pending_reset_passwords 
-        WHERE account = p_account
+        WHERE id = v_user_id
     ) THEN
-        IF EXISTS (
+       IF EXISTS (
             SELECT 1
             FROM pending_reset_passwords
-            WHERE account = p_account
+            WHERE id = v_user_id
               AND now() - updated_at < interval '5 minutes'
         ) THEN
             PERFORM util_raise_error('P0005', p_account);
@@ -470,17 +472,17 @@ BEGIN
         UPDATE pending_reset_passwords
         SET verification_code = v_code,
             updated_at = now()
-        WHERE account = p_account;
+        WHERE id = v_user_id;
 
     ELSE
         v_code := util_generate_verification_code();
         INSERT INTO pending_reset_passwords (
-            account,
+            id,
             verification_code,
             created_at,
             updated_at
         ) VALUES (
-            p_account,
+            v_user_id,
             v_code,
             now(),
             now()
@@ -499,12 +501,20 @@ CREATE OR REPLACE FUNCTION func_reset_password (
 RETURNS void
 AS $$
 DECLARE
+    v_user_id UUID;
     v_row pending_reset_passwords%ROWTYPE;
 BEGIN
+    SELECT id INTO v_user_id
+    FROM users
+    WHERE account = p_account;
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('P0004', p_account);
+    END IF;
+
     SELECT *
     INTO v_row
     FROM pending_reset_passwords
-    WHERE account = p_account;
+    WHERE id = v_user_id;
 
     IF NOT FOUND THEN
         PERFORM util_raise_error('P0006', p_account);
@@ -521,9 +531,9 @@ BEGIN
     UPDATE users
 	SET password = crypt(p_new_password, gen_salt('bf')),
 	    updated_at = now()
-	WHERE account = p_account;
+    WHERE id = v_user_id;
 
-    DELETE FROM pending_reset_passwords WHERE account = p_account;
+    DELETE FROM pending_reset_passwords WHERE id = v_user_id;
 END;
 $$ LANGUAGE plpgsql;
 
