@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS genders CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
 DROP TABLE IF EXISTS user_statuses CASCADE;
 DROP TABLE IF EXISTS locales CASCADE;
+DROP TABLE IF EXISTS timezones CASCADE;
 DROP TABLE IF EXISTS error_codes CASCADE;
 
 
@@ -105,6 +106,12 @@ INSERT INTO locales (
     now()
 );
 
+CREATE TABLE timezones (
+    name TEXT PRIMARY KEY
+);
+INSERT INTO timezones (name)
+SELECT name FROM pg_timezone_names;
+
 CREATE TABLE pending_users (
 	account VARCHAR(255) PRIMARY KEY,
 	password VARCHAR(255) NOT NULL,
@@ -141,11 +148,13 @@ CREATE TABLE user_profiles (
     lastname VARCHAR(255) NOT NULL,
     gender INTEGER NOT NULL,
     locale INTEGER NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'UTC',
     avatar VARCHAR(255),
     signature VARCHAR(255),
-	CONSTRAINT fk_user_profiles_id FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE,
-	CONSTRAINT fk_user_profiles_gender FOREIGN KEY (gender) REFERENCES genders(id),
-	CONSTRAINT fk_user_profiles_locale FOREIGN KEY (locale) REFERENCES locales(id)
+    CONSTRAINT fk_user_profiles_id FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_profiles_gender FOREIGN KEY (gender) REFERENCES genders(id),
+    CONSTRAINT fk_user_profiles_locale FOREIGN KEY (locale) REFERENCES locales(id),
+    CONSTRAINT fk_user_profiles_timezone FOREIGN KEY (timezone) REFERENCES timezones(name)
 );
 
 CREATE TABLE pending_reset_passwords (
