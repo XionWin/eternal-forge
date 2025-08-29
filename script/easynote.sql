@@ -181,12 +181,12 @@ BEGIN
     WHERE errcode = p_errcode;
 
     IF v_template IS NULL THEN
-        RAISE EXCEPTION 'Unknown error code: %', p_errcode;
+        RAISE EXCEPTION 'Error in function %s: Unknown error code: %', util_get_current_function_name(), p_errcode;
     END IF;
 
     IF array_length(p_args, 1) <> v_param_count THEN
-        RAISE EXCEPTION 'Incorrect number of arguments for error code %: expected %, got %',
-            p_errcode, v_param_count, array_length(p_args, 1);
+        RAISE EXCEPTION 'Error in function %s: Incorrect number of arguments for error code %: expected %, got %',
+            util_get_current_function_name(), p_errcode, v_param_count, array_length(p_args, 1);
     END IF;
 
     RAISE EXCEPTION '%', format('Error in function %s: %s', util_get_current_function_name(), format(v_template, VARIADIC p_args))
@@ -194,7 +194,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
+-- Get function name from stack, so it only can be called from the function which call util_raise_error function directly.
 CREATE OR REPLACE FUNCTION util_get_current_function_name()
 RETURNS text AS  $$
 DECLARE
