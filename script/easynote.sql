@@ -31,15 +31,17 @@ CREATE TABLE error_codes (
     message_template TEXT NOT NULL
 );
 INSERT INTO error_codes (errcode, param_count, message_template) VALUES
-('P0001', 1, 'Account %s is not available.'),
-('P0002', 1, 'Account %s was not registered.'),
-('P0003', 1, 'Verification code was recently generated for account %s. Please wait before requesting again.'),
-('P0004', 1, 'Account %s is not found.'),
-('P0005', 1, 'Reset code was recently generated for account %s. Please wait before requesting again.'),
-('P0006', 1, 'No reset request found for account %s.'),
-('P0007', 0, 'Invalid verification code.'),
-('P0008', 0, 'Verification code expired.'),
-('P0009', 1, 'User profile with account %s not found.');
+('P0001', 2, 'Error in function %s: Account %s is not available.'),
+('P0002', 2, 'Error in function %s: Account %s was not registered.'),
+('P0003', 2, 'Error in function %s: Verification code was recently generated for account %s. Please wait before requesting again.'),
+('P0004', 2, 'Error in function %s: Account %s is not found.'),
+('P0005', 2, 'Error in function %s: Reset code was recently generated for account %s. Please wait before requesting again.'),
+('P0006', 2, 'Error in function %s: No reset request found for account %s.'),
+('P0007', 1, 'Error in function %s: Invalid verification code.'),
+('P0008', 1, 'Error in function %s: Verification code expired.'),
+('P0009', 2, 'Error in function %s: User profile with account %s not found.'),
+('P0010', 2, 'Error in function %s: User id %s not found.'),
+('P0011', 2, 'Error in function %s: Verification account %s failed, rolling back.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -192,11 +194,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION util_raise_error(
-    p_errcode TEXT
-) RETURNS void AS $$
+
+CREATE OR REPLACE FUNCTION util_get_current_function_name()
+RETURNS text AS  $$
+DECLARE
+  stack text; fcesig text;
 BEGIN
-    PERFORM util_raise_error(p_errcode, VARIADIC ARRAY[]::TEXT[]);
+  GET DIAGNOSTICS stack = PG_CONTEXT;
+  fcesig := substring(substring(stack from 'unction (.*)') from 'function (.*?) line');
+  RETURN fcesig::regprocedure::text;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -248,7 +254,7 @@ DECLARE
     v_code VARCHAR;
 BEGIN
 	IF NOT util_verify_account(p_account) THEN
-	    PERFORM util_raise_error('P0001', p_account);
+	    PERFORM util_raise_error('P0001', util_get_current_function_name(), p_account);
     END IF;
 
 	v_code := util_generate_verification_code();
@@ -294,46 +300,52 @@ DECLARE
     v_id UUID;
     v_pending_user pending_users%ROWTYPE;
 BEGIN
-	SELECT *
-    INTO v_pending_user
-    FROM pending_users
-    WHERE account = p_account
-		AND crypt(p_password, password) = password
-    	AND verification_code = UPPER(p_verification_code);
-	  
-	IF NOT FOUND THEN
-        RETURN NULL;
-    END IF;
+    BEGIN
+        SELECT *
+        INTO v_pending_user
+        FROM pending_users
+        WHERE account = p_account
+            AND crypt(p_password, password) = password
+            AND verification_code = UPPER(p_verification_code);
+        
+        IF NOT FOUND THEN
+        	PERFORM util_raise_error('P0002', util_get_current_function_name(), p_account);
+            RETURN NULL;
+        END IF;
 
-	INSERT INTO users (
-        account, password,
-        status, role,
-        created_at, updated_at, last_login_at
-    ) VALUES (
-        v_pending_user.account,
-        v_pending_user.password,
-        1,
-        2,
-        v_pending_user.created_at, now(), now()
-    )
-    RETURNING id INTO v_id;
-	
-    INSERT INTO user_profiles (
-        id, firstname, lastname,
-        gender, locale,
-        avatar, signature
-    ) VALUES (
-        v_id,
-        v_pending_user.firstname,
-        v_pending_user.lastname,
-        v_pending_user.gender,
-        v_pending_user.locale,
-        v_pending_user.avatar,
-        v_pending_user.signature
-    );
-	
-    DELETE FROM pending_users
-    WHERE account = v_pending_user.account;
+        INSERT INTO users (
+            account, password,
+            status, role,
+            created_at, updated_at, last_login_at
+        ) VALUES (
+            v_pending_user.account,
+            v_pending_user.password,
+            1,
+            2,
+            v_pending_user.created_at, now(), now()
+        )
+        RETURNING id INTO v_id;
+
+        INSERT INTO user_profiles (
+            id, firstname, lastname,
+            gender, locale,
+            avatar, signature
+        ) VALUES (
+            v_id,
+            v_pending_user.firstname,
+            v_pending_user.lastname,
+            v_pending_user.gender,
+            v_pending_user.locale,
+            v_pending_user.avatar,
+            v_pending_user.signature
+        );
+        
+        DELETE FROM pending_users
+        WHERE account = v_pending_user.account;
+
+    EXCEPTION WHEN OTHERS THEN
+        PERFORM util_raise_error('P0011', util_get_current_function_name(), p_account);
+    END;
 	
     RETURN v_id::UUID;
 END;
@@ -352,7 +364,7 @@ BEGIN
 	    FROM pending_users
 	    WHERE account = p_account
 	) THEN
-		PERFORM util_raise_error('P0002', p_account);
+		PERFORM util_raise_error('P0002', util_get_current_function_name(), p_account);
 	END IF;
 	
 	IF EXISTS (
@@ -361,7 +373,7 @@ BEGIN
         WHERE account = p_account
         	AND now() - updated_at < interval '5 minutes'
     ) THEN
-        PERFORM util_raise_error('P0003', p_account);
+        PERFORM util_raise_error('P0003', util_get_current_function_name(), p_account);
     END IF;
 	
 	v_code := util_generate_verification_code();
@@ -392,12 +404,13 @@ BEGIN
 	LIMIT 1;
 	
     IF FOUND THEN
-		RETURN QUERY
-	    SELECT 'SUCCESS'::login_status AS code, v_id;
-		
 		UPDATE users
 		SET last_login_at = now()
 		WHERE users.id  = v_id;
+		
+		-- update user last_login_at before 'return query', otherwise, it may not be executed in some type of the sql client.
+		RETURN QUERY
+	    SELECT 'SUCCESS'::login_status AS code, v_id;
 		
         RETURN;
     END IF;
@@ -436,7 +449,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM users WHERE account = p_account
     ) THEN
-        PERFORM util_raise_error('P0004', p_account);
+        PERFORM util_raise_error('P0004', util_get_current_function_name(), p_account);
     END IF;
 
     IF EXISTS (
@@ -450,7 +463,7 @@ BEGIN
             WHERE account = p_account
               AND now() - updated_at < interval '5 minutes'
         ) THEN
-            PERFORM util_raise_error('P0005', p_account);
+            PERFORM util_raise_error('P0005', util_get_current_function_name(), p_account);
         END IF;
 
         v_code := util_generate_verification_code();
@@ -494,15 +507,15 @@ BEGIN
     WHERE account = p_account;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0006', p_account);
+        PERFORM util_raise_error('P0006', util_get_current_function_name(), p_account);
     END IF;
 
     IF v_row.verification_code <> p_verification_code THEN
-        PERFORM util_raise_error('P0007');
+        PERFORM util_raise_error('P0007', util_get_current_function_name());
     END IF;
 
     IF now() - v_row.updated_at > interval '15 minutes' THEN
-        PERFORM util_raise_error('P0008');
+        PERFORM util_raise_error('P0008', util_get_current_function_name());
     END IF;
 
     UPDATE users
@@ -528,7 +541,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0001', p_id);
+	    PERFORM util_raise_error('P0010', util_get_current_function_name(), p_id);
     END IF;
 	
     UPDATE users
@@ -537,15 +550,15 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', util_get_current_function_name(), v_account);
     END IF;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_name(
 	p_id UUID,
-	p_first_name VARCHAR,
-	p_last_name VARCHAR
+	p_firstname VARCHAR,
+	p_lastname VARCHAR
 ) RETURNS void
 AS $$
 DECLARE
@@ -557,18 +570,18 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0001', p_id);
+	    PERFORM util_raise_error('P0001', util_get_current_function_name(), p_id);
     END IF;
 	
     UPDATE user_profiles up
-    SET firstname = p_first_name,
-        lastname  = p_last_name
+    SET firstname = p_firstname,
+        lastname  = p_lastname
 	From users u
 	WHERE up.id = u.id
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', util_get_current_function_name(), v_account);
     END IF;
 
     UPDATE users
@@ -591,7 +604,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('P0001', util_get_current_function_name(), p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -601,7 +614,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', util_get_current_function_name(), v_account);
     END IF;
 
     UPDATE users
@@ -624,7 +637,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('P0001', util_get_current_function_name(), p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -634,7 +647,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', util_get_current_function_name(), v_account);
     END IF;
 
     UPDATE users
@@ -657,7 +670,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('P0001', util_get_current_function_name(), p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -667,7 +680,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', util_get_current_function_name(), v_account);
     END IF;
 
     UPDATE users
@@ -690,7 +703,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('P0001', util_get_current_function_name(), p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -700,7 +713,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('P0009', util_get_current_function_name(), v_account);
     END IF;
 
     UPDATE users
