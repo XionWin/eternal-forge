@@ -31,16 +31,21 @@ CREATE TABLE error_codes (
     message_template TEXT NOT NULL
 );
 INSERT INTO error_codes (errcode, param_count, message_template) VALUES
-('P0001', 1, 'Account %s is not available.'),
-('P0002', 1, 'Account %s was not registered.'),
-('P0003', 1, 'Verification code was recently generated for account %s. Please wait before requesting again.'),
-('P0004', 1, 'Account %s is not found.'),
-('P0006', 1, 'No reset request found for account %s.'),
+-- ACCOUNT
+('P0001', 1, 'Account %s is unavailable.'),
+('P0002', 1, 'Account %s is not registered.'),
+('P0004', 1, 'Account %s was not found.'),
+-- ('P0000', 1, 'Account %s is pending activation.'),
+-- ('P0000', 1, 'Invalid password for account %s.'),
+('P0009', 1, 'User profile for account %s was not found.'),
+
+('P0003', 1, 'Verification code for account %s was recently generated. Please wait before requesting again.'),
 ('P0007', 0, 'Invalid verification code.'),
 ('P0008', 0, 'Verification code expired.'),
-('P0009', 1, 'User profile with account %s not found.'),
-('P0010', 1, 'User id %s not found.'),
-('P0011', 1, 'Verification account %s failed.');
+
+('P0006', 1, 'No password reset request found for account %s.'),
+('P0010', 1, 'User ID %s not found.'),
+('P0011', 1, 'Verification for account %s failed.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -341,9 +346,6 @@ BEGIN
         
         DELETE FROM pending_users
         WHERE account = v_pending_user.account;
-
-    EXCEPTION WHEN OTHERS THEN
-        PERFORM util_raise_error('P0011', p_account);
     END;
 	
     RETURN v_id::UUID;
