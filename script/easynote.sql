@@ -32,20 +32,18 @@ CREATE TABLE error_codes (
 );
 INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 -- ACCOUNT
-('P0001', 1, 'Account %s is unavailable.'),
-('P0002', 1, 'Account %s is not registered.'),
-('P0004', 1, 'Account %s was not found.'),
--- ('P0000', 1, 'Account %s is pending activation.'),
--- ('P0000', 1, 'Invalid password for account %s.'),
-('P0009', 1, 'User profile for account %s was not found.'),
+('PA001', 1, 'Account %s is unavailable.'),
+('PA002', 1, 'Account %s is not registered.'),
+('PA003', 1, 'Account %s was not found.'),
+('PA004', 1, 'Account %s is pending activation.'),
+('PA005', 1, 'Invalid password for account %s.'),
+('PA006', 1, 'User profile for account %s was not found.'),
+('PA007', 1, 'User ID %s not found.'),
 
-('P0003', 1, 'Verification code for account %s was recently generated. Please wait before requesting again.'),
-('P0007', 0, 'Invalid verification code.'),
-('P0008', 0, 'Verification code expired.'),
-
-('P0006', 1, 'No password reset request found for account %s.'),
-('P0010', 1, 'User ID %s not found.'),
-('P0011', 1, 'Verification for account %s failed.');
+('PA008', 1, 'Verification code for account %s was recently generated. Please wait before requesting again.'),
+('PA009', 0, 'Invalid verification code.'),
+('PA010', 0, 'Verification code expired.'),
+('PA011', 1, 'No password reset request found for account %s.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -258,7 +256,7 @@ DECLARE
     v_code VARCHAR;
 BEGIN
 	IF NOT util_verify_account(p_account) THEN
-	    PERFORM util_raise_error('P0001', p_account);
+	    PERFORM util_raise_error('PA001', p_account);
     END IF;
 
 	v_code := util_generate_verification_code();
@@ -313,7 +311,7 @@ BEGIN
             AND verification_code = UPPER(p_verification_code);
         
         IF NOT FOUND THEN
-        	PERFORM util_raise_error('P0002', p_account);
+        	PERFORM util_raise_error('PA002', p_account);
             RETURN NULL;
         END IF;
 
@@ -365,7 +363,7 @@ BEGIN
 	    FROM pending_users
 	    WHERE account = p_account
 	) THEN
-		PERFORM util_raise_error('P0002', p_account);
+		PERFORM util_raise_error('PA002', p_account);
 	END IF;
 	
 	IF EXISTS (
@@ -374,7 +372,7 @@ BEGIN
         WHERE account = p_account
         	AND now() - updated_at < interval '5 minutes'
     ) THEN
-        PERFORM util_raise_error('P0003', p_account);
+        PERFORM util_raise_error('PA008', p_account);
     END IF;
 	
 	v_code := util_generate_verification_code();
@@ -452,7 +450,7 @@ BEGIN
     FROM users
     WHERE account = p_account;
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0004', p_account);
+        PERFORM util_raise_error('PA003', p_account);
     END IF;
 
     IF EXISTS (
@@ -466,7 +464,7 @@ BEGIN
             WHERE id = v_user_id
               AND now() - updated_at < interval '5 minutes'
         ) THEN
-            PERFORM util_raise_error('P0003', p_account);
+            PERFORM util_raise_error('PA008', p_account);
         END IF;
 
         v_code := util_generate_verification_code();
@@ -509,7 +507,7 @@ BEGIN
     FROM users
     WHERE account = p_account;
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0004', p_account);
+        PERFORM util_raise_error('PA003', p_account);
     END IF;
 
     SELECT *
@@ -518,15 +516,15 @@ BEGIN
     WHERE id = v_user_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0006', p_account);
+        PERFORM util_raise_error('PA011', p_account);
     END IF;
 
     IF v_row.verification_code <> p_verification_code THEN
-        PERFORM util_raise_error('P0007');
+        PERFORM util_raise_error('PA009');
     END IF;
 
     IF now() - v_row.updated_at > interval '15 minutes' THEN
-        PERFORM util_raise_error('P0008');
+        PERFORM util_raise_error('PA010');
     END IF;
 
     UPDATE users
@@ -552,7 +550,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0010', p_id);
+	    PERFORM util_raise_error('PA007', p_id);
     END IF;
 	
     UPDATE users
@@ -561,7 +559,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('PA006', v_account);
     END IF;
 END;
 $$ LANGUAGE plpgsql;
@@ -581,7 +579,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0001', p_id);
+	    PERFORM util_raise_error('PA001', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -592,7 +590,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('PA006', v_account);
     END IF;
 
     UPDATE users
@@ -615,7 +613,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('PA001', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -625,7 +623,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('PA006', v_account);
     END IF;
 
     UPDATE users
@@ -648,7 +646,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('PA001', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -658,7 +656,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('PA006', v_account);
     END IF;
 
     UPDATE users
@@ -681,7 +679,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('PA001', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -691,7 +689,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('PA006', v_account);
     END IF;
 
     UPDATE users
@@ -714,7 +712,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('P0001', p_id);
+        PERFORM util_raise_error('PA001', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -724,7 +722,7 @@ BEGIN
 		AND up.id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('P0009', v_account);
+	    PERFORM util_raise_error('PA006', v_account);
     END IF;
 
     UPDATE users
