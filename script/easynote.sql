@@ -11,19 +11,6 @@ DROP TABLE IF EXISTS user_statuses CASCADE;
 DROP TABLE IF EXISTS locales CASCADE;
 DROP TABLE IF EXISTS timezones CASCADE;
 DROP TABLE IF EXISTS error_codes CASCADE;
-
-
-DROP FUNCTION IF EXISTS func_login_user (
-    p_account VARCHAR,
-	p_password VARCHAR
-);
-DROP TYPE IF EXISTS login_status CASCADE;
-CREATE TYPE login_status AS ENUM (
-	'SUCCESS',
-	'PENDING',
-	'PASSWORD_WRONG',
-	'NOT_FOUND'
-);
 		
 CREATE TABLE error_codes (
     errcode TEXT PRIMARY KEY,
@@ -388,10 +375,7 @@ CREATE OR REPLACE FUNCTION func_login_user (
     p_account VARCHAR,
 	p_password VARCHAR
 )
-RETURNS TABLE (
-	code login_status,
-    id UUID
-)
+RETURNS UUID
 AS $$
 DECLARE
     v_id UUID;
@@ -407,33 +391,18 @@ BEGIN
 		SET last_login_at = now()
 		WHERE users.id  = v_id;
 		
-		-- update user last_login_at before 'return query', otherwise, it may not be executed in some type of the sql client.
-		RETURN QUERY
-	    SELECT 'SUCCESS'::login_status AS code, v_id;
-		
-        RETURN;
+        RETURN v_id;
     END IF;
 
-    RETURN QUERY
-    SELECT 'PENDING'::login_status AS code, NULL::UUID
-    FROM pending_users
-    WHERE account = p_account
-    LIMIT 1;
-    IF FOUND THEN
-        RETURN;
+    IF EXISTS (SELECT 1 FROM pending_users WHERE account = p_account LIMIT 1) THEN
+        PERFORM util_raise_error('PA004', p_account);
     END IF;
 
-	RETURN QUERY
-    SELECT 'PASSWORD_WRONG'::login_status AS code, NULL::UUID
-    FROM users
-    WHERE account = p_account
-    LIMIT 1;
-    IF FOUND THEN
-        RETURN;
+    IF EXISTS (SELECT 1 FROM users WHERE account = p_account LIMIT 1) THEN
+        PERFORM util_raise_error('PA005', p_account);
     END IF;
 	
-    RETURN QUERY
-    SELECT 'NOT_FOUND'::login_status AS code, NULL::UUID;
+	PERFORM util_raise_error('PA003', p_account);
 END;
 $$ LANGUAGE plpgsql;
 
