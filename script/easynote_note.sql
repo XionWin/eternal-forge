@@ -133,7 +133,7 @@ BEGIN
 	PERFORM util_raise_error('PN001', p_category_id, v_account);
 	END IF;
 
-	-- 原子切换默认
+	-- Change default category
 	UPDATE note_categories
 	SET is_default = (id = p_category_id)
 	WHERE user_id = p_id;
