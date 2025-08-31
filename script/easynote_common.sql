@@ -124,21 +124,12 @@ CREATE TABLE pending_users (
 );
 CREATE OR REPLACE FUNCTION trgfn_pending_users_set_updated_at()
 RETURNS TRIGGER AS $$
+DECLARE
+    excluded_columns TEXT[] := ARRAY['last_login_at'];
 BEGIN
-	IF (NEW.last_login_at IS DISTINCT FROM OLD.last_login_at)
-	   AND (NEW.account        IS NOT DISTINCT FROM OLD.account)
-       AND (NEW.password       IS NOT DISTINCT FROM OLD.password)
-       AND (NEW.verification_code IS NOT DISTINCT FROM OLD.verification_code)
-       AND (NEW.firstname      IS NOT DISTINCT FROM OLD.firstname)
-       AND (NEW.lastname       IS NOT DISTINCT FROM OLD.lastname)
-       AND (NEW.gender         IS NOT DISTINCT FROM OLD.gender)
-       AND (NEW.locale         IS NOT DISTINCT FROM OLD.locale)
-       AND (NEW.avatar         IS NOT DISTINCT FROM OLD.avatar)
-       AND (NEW.signature      IS NOT DISTINCT FROM OLD.signature) THEN
-	 		RETURN NEW;
-	END IF;
-	
-	NEW.updated_at := now();
+	IF to_jsonb(NEW) - excluded_columns IS DISTINCT FROM to_jsonb(OLD) - excluded_columns THEN
+        NEW.updated_at = now();
+    END IF;
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -162,18 +153,12 @@ CREATE TABLE users (
 );
 CREATE OR REPLACE FUNCTION trgfn_users_set_updated_at()
 RETURNS TRIGGER AS $$
+DECLARE
+    excluded_columns TEXT[] := ARRAY['last_login_at'];
 BEGIN
-	IF (NEW.last_login_at 	IS DISTINCT FROM OLD.last_login_at)
-	   AND (NEW.id       	IS NOT DISTINCT FROM OLD.id)
-       AND (NEW.account		IS NOT DISTINCT FROM OLD.account)
-       AND (NEW.password	IS NOT DISTINCT FROM OLD.password)
-       AND (NEW.status      IS NOT DISTINCT FROM OLD.status)
-       AND (NEW.role      	IS NOT DISTINCT FROM OLD.role) THEN
-	 		RETURN NEW;
-	   RETURN NEW;
-	END IF;
-	
-	NEW.updated_at := now();
+	IF to_jsonb(NEW) - excluded_columns IS DISTINCT FROM to_jsonb(OLD) - excluded_columns THEN
+        NEW.updated_at = now();
+    END IF;
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
