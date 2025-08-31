@@ -119,6 +119,31 @@ CREATE TABLE pending_users (
 	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id),
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
+CREATE OR REPLACE FUNCTION trgfn_pending_users_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF (NEW.last_login_at IS DISTINCT FROM OLD.last_login_at)
+	   AND (NEW.account        IS NOT DISTINCT FROM OLD.account)
+       AND (NEW.password       IS NOT DISTINCT FROM OLD.password)
+       AND (NEW.verification_code IS NOT DISTINCT FROM OLD.verification_code)
+       AND (NEW.firstname      IS NOT DISTINCT FROM OLD.firstname)
+       AND (NEW.lastname       IS NOT DISTINCT FROM OLD.lastname)
+       AND (NEW.gender         IS NOT DISTINCT FROM OLD.gender)
+       AND (NEW.locale         IS NOT DISTINCT FROM OLD.locale)
+       AND (NEW.avatar         IS NOT DISTINCT FROM OLD.avatar)
+       AND (NEW.signature      IS NOT DISTINCT FROM OLD.signature) THEN
+	 		RETURN NEW;
+	END IF;
+	
+	NEW.updated_at := now();
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_pending_users_set_updated_at_on_update ON pending_users;
+CREATE TRIGGER trg_pending_users_set_updated_at_on_update
+BEFORE UPDATE ON pending_users
+FOR EACH ROW
+EXECUTE FUNCTION trgfn_pending_users_set_updated_at();
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -132,6 +157,28 @@ CREATE TABLE users (
     CONSTRAINT fk_users_status FOREIGN KEY (status) REFERENCES user_statuses(id),
     CONSTRAINT fk_users_role FOREIGN KEY (role) REFERENCES roles(id)
 );
+CREATE OR REPLACE FUNCTION trgfn_users_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+	IF (NEW.last_login_at 	IS DISTINCT FROM OLD.last_login_at)
+	   AND (NEW.id       	IS NOT DISTINCT FROM OLD.id)
+       AND (NEW.account		IS NOT DISTINCT FROM OLD.account)
+       AND (NEW.password	IS NOT DISTINCT FROM OLD.password)
+       AND (NEW.status      IS NOT DISTINCT FROM OLD.status)
+       AND (NEW.role      	IS NOT DISTINCT FROM OLD.role) THEN
+	 		RETURN NEW;
+	   RETURN NEW;
+	END IF;
+	
+	NEW.updated_at := now();
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_users_set_updated_at_on_update ON users;
+CREATE TRIGGER trg_users_set_updated_at_on_update
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION trgfn_users_set_updated_at();
 
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY,
@@ -155,6 +202,18 @@ CREATE TABLE pending_reset_passwords (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	CONSTRAINT fk_pending_reset_passwords_account FOREIGN KEY (id) REFERENCES users(id)
 );
+CREATE OR REPLACE FUNCTION trgfn_pending_reset_passwords_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_pending_reset_passwords_set_updated_at_on_update ON pending_reset_passwords;
+CREATE TRIGGER trg_pending_reset_passwords_set_updated_at_on_update
+BEFORE UPDATE ON pending_reset_passwords
+FOR EACH ROW
+EXECUTE FUNCTION trgfn_pending_reset_passwords_set_updated_at();
 
 CREATE OR REPLACE FUNCTION util_raise_error(
     p_errcode TEXT,
@@ -364,7 +423,7 @@ BEGIN
 	
 	v_code := util_generate_verification_code();
 	UPDATE pending_users
-	SET verification_code = v_code, updated_at = now()
+	SET verification_code = v_code
 	WHERE account = p_account;
 	
 	RETURN v_code;
@@ -438,8 +497,7 @@ BEGIN
 
         v_code := util_generate_verification_code();
         UPDATE pending_reset_passwords
-        SET verification_code = v_code,
-            updated_at = now()
+        SET verification_code = v_code
         WHERE id = v_user_id;
 
     ELSE
@@ -497,8 +555,7 @@ BEGIN
     END IF;
 
     UPDATE users
-	SET password = crypt(p_new_password, gen_salt('bf')),
-	    updated_at = now()
+	SET password = crypt(p_new_password, gen_salt('bf'))
     WHERE id = v_user_id;
 
     DELETE FROM pending_reset_passwords WHERE id = v_user_id;
@@ -523,8 +580,7 @@ BEGIN
     END IF;
 	
     UPDATE users
-	SET password = crypt(p_password, gen_salt('bf')),
-	    updated_at = now()
+	SET password = crypt(p_password, gen_salt('bf'))
     WHERE id = p_id;
 
     IF NOT FOUND THEN
@@ -561,10 +617,6 @@ BEGIN
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
     END IF;
-
-    UPDATE users
-    SET updated_at = now()
-    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -594,10 +646,6 @@ BEGIN
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
     END IF;
-
-    UPDATE users
-    SET updated_at = now()
-    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -627,10 +675,6 @@ BEGIN
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
     END IF;
-
-    UPDATE users
-    SET updated_at = now()
-    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -660,10 +704,6 @@ BEGIN
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
     END IF;
-
-    UPDATE users
-    SET updated_at = now()
-    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -693,10 +733,6 @@ BEGIN
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
     END IF;
-
-    UPDATE users
-    SET updated_at = now()
-    WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql;
 
