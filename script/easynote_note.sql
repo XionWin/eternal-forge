@@ -110,3 +110,32 @@ CREATE TRIGGER trg_notes_set_default_category_on_insert
 BEFORE INSERT ON notes
 FOR EACH ROW
 EXECUTE FUNCTION trgfn_notes_set_default_category();
+
+
+CREATE OR REPLACE FUNCTION func_set_default_category(p_id UUID, p_category_id INTEGER)
+RETURNS VOID AS $$
+DECLARE
+	v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('PA007', p_id);
+    END IF;
+	
+	-- Check attribution
+	IF NOT EXISTS (
+	SELECT 1 FROM note_categories WHERE id = p_category_id AND user_id = p_id
+	) THEN
+	PERFORM util_raise_error('PN001', p_category_id, v_account);
+	END IF;
+
+	-- 原子切换默认
+	UPDATE note_categories
+	SET is_default = (id = p_category_id)
+	WHERE user_id = p_id;
+END;
+$$ LANGUAGE plpgsql;

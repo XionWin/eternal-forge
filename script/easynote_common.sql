@@ -30,7 +30,10 @@ INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 ('PA008', 1, 'Verification code for account %s was recently generated. Please wait before requesting again.'),
 ('PA009', 0, 'Invalid verification code.'),
 ('PA010', 0, 'Verification code expired.'),
-('PA011', 1, 'No password reset request found for account %s.');
+('PA011', 1, 'No password reset request found for account %s.'),
+
+
+('PN001', 2, 'Category % does not belong to user %.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -604,7 +607,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('PA001', p_id);
+	    PERFORM util_raise_error('PA007', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -634,7 +637,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA001', p_id);
+        PERFORM util_raise_error('PA007', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -663,7 +666,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA001', p_id);
+        PERFORM util_raise_error('PA007', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -692,7 +695,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA001', p_id);
+        PERFORM util_raise_error('PA007', p_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -721,7 +724,7 @@ BEGIN
     WHERE id = p_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA001', p_id);
+        PERFORM util_raise_error('PA007', p_id);
     END IF;
 	
     UPDATE user_profiles up
