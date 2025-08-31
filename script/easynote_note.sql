@@ -9,7 +9,7 @@ CREATE TABLE note_source_types (
 );
 INSERT INTO note_source_types (id, name, description) VALUES
 (0, 'Unknown', 'Unknown source'),
-(1, 'Web', 'Collected from browser extension or website'),
+(1, 'Web', 'Collected from website'),
 (2, 'Manual', 'Manually entered by user');
 
 CREATE TABLE note_categories (
@@ -25,7 +25,7 @@ CREATE UNIQUE INDEX idx_note_categories_user_default
     ON note_categories(user_id)
     WHERE is_default = TRUE;
 
-CREATE OR REPLACE FUNCTION trgfn_note_categories_autodefault()
+CREATE OR REPLACE FUNCTION trgfn_note_categories_auto_set_default_category()
 RETURNS TRIGGER
 AS $$
 BEGIN
@@ -42,31 +42,71 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trg_note_categories_autodefault_insert ON note_categories;
-CREATE TRIGGER trg_note_categories_autodefault_insert
+DROP TRIGGER IF EXISTS trg_note_categories_auto_set_default_category_on_insert ON note_categories;
+CREATE TRIGGER trg_note_categories_auto_set_default_category_on_insert
 BEFORE INSERT ON note_categories
 FOR EACH ROW
-EXECUTE FUNCTION trgfn_note_categories_autodefault();
+EXECUTE FUNCTION trgfn_note_categories_auto_set_default_category();
 
-DROP TRIGGER IF EXISTS trg_note_categories_single_default_update ON note_categories;
-CREATE TRIGGER trg_note_categories_single_default_update
+DROP TRIGGER IF EXISTS trg_note_categories_auto_set_default_category_on_update ON note_categories;
+CREATE TRIGGER trg_note_categories_auto_set_default_category_on_update
 AFTER UPDATE OF is_default, user_id ON note_categories
 FOR EACH ROW
-EXECUTE FUNCTION trgfn_note_categories_autodefault();
+EXECUTE FUNCTION trgfn_note_categories_auto_set_default_category();
 
 CREATE TABLE notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     content TEXT NOT NULL,
-    translated_content TEXT,
-    language VARCHAR(16),
-	source_type INTEGER NOT NULL,
-    source TEXT,
+	source_type INTEGER NOT NULL REFERENCES note_source_types(id),
 
-    category INTEGER,
-    meta JSONB DEFAULT '{}'::jsonb,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    category INTEGER REFERENCES note_categories(id) ON DELETE SET NULL,
+	
+    meta JSONB DEFAULT '{}'::jsonb
 );
+CREATE INDEX IF NOT EXISTS idx_notes_user_time ON notes(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);
+CREATE INDEX IF NOT EXISTS idx_notes_source_type ON notes(source_type);
+
+CREATE OR REPLACE FUNCTION trgfn_notes_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_notes_set_updated_at_on_update ON notes;
+CREATE TRIGGER trg_notes_set_updated_at_on_update
+BEFORE UPDATE ON notes
+FOR EACH ROW
+EXECUTE FUNCTION trgfn_notes_set_updated_at();
+
+CREATE OR REPLACE FUNCTION trgfn_notes_set_default_category()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_default_category_id INTEGER;
+BEGIN
+  IF NEW.category_id IS NULL THEN
+    SELECT id INTO v_default_category_id
+    FROM note_categories
+    WHERE user_id = NEW.user_id
+      AND is_default = TRUE
+    LIMIT 1;
+
+    IF FOUND THEN
+      NEW.category_id := v_default_category_id;
+    END IF;
+    -- If current use has no any categroy, keep the NULL value.
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_notes_set_default_category_on_insert ON notes;
+CREATE TRIGGER trg_notes_set_default_category_on_insert
+BEFORE INSERT ON notes
+FOR EACH ROW
+EXECUTE FUNCTION trgfn_notes_set_default_category();
