@@ -139,3 +139,43 @@ BEGIN
 	WHERE user_id = p_id;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_add_category(
+    p_id UUID,
+    p_name VARCHAR,
+    p_description TEXT,
+    p_is_default BOOLEAN
+) RETURNS VOID AS $$
+DECLARE
+    v_account VARCHAR;
+    v_category_id INTEGER;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('PA007', p_id);
+    END IF;
+
+	IF EXISTS (
+		SELECT 1 
+		FROM note_categories 
+		WHERE user_id = p_id AND name = p_name
+	) THEN
+		PERFORM util_raise_error('PN002', p_name, v_account);
+	END IF;
+
+    INSERT INTO note_categories (user_id, name, description, is_default)
+    VALUES (p_id, p_name, p_description, p_is_default)
+    RETURNING id INTO v_category_id;
+
+    -- If the new item should be default, we need set the others as undefault.
+    IF p_is_default THEN
+        UPDATE note_categories
+        SET is_default = FALSE
+        WHERE user_id = p_id AND id <> v_category_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;

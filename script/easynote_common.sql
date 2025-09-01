@@ -33,7 +33,8 @@ INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 ('PA011', 1, 'No password reset request found for account %s.'),
 
 
-('PN001', 2, 'Category % does not belong to user %.');
+('PN001', 2, 'Category %s does not belong to user %s.'),
+('PN002', 2, 'The category name %s" already exists for user %s.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
