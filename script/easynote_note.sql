@@ -112,36 +112,8 @@ FOR EACH ROW
 EXECUTE FUNCTION trgfn_notes_set_default_category();
 
 
-CREATE OR REPLACE FUNCTION func_set_default_category(p_id UUID, p_category_id INTEGER)
-RETURNS VOID AS $$
-DECLARE
-	v_account VARCHAR;
-BEGIN
-    SELECT account
-    INTO v_account
-    FROM users
-    WHERE id = p_id;
-
-    IF NOT FOUND THEN
-	    PERFORM util_raise_error('PA007', p_id);
-    END IF;
-	
-	-- Check attribution
-	IF NOT EXISTS (
-	SELECT 1 FROM note_categories WHERE id = p_category_id AND user_id = p_id
-	) THEN
-	PERFORM util_raise_error('PN001', p_category_id, v_account);
-	END IF;
-
-	-- Change default category
-	UPDATE note_categories
-	SET is_default = (id = p_category_id)
-	WHERE user_id = p_id;
-END;
-$$ LANGUAGE plpgsql;
-
 CREATE OR REPLACE FUNCTION func_add_category(
-    p_id UUID,
+    p_user_id UUID,
     p_name VARCHAR,
     p_description TEXT,
     p_is_default BOOLEAN
@@ -153,29 +125,57 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA007', p_id);
+        PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 
 	IF EXISTS (
 		SELECT 1 
 		FROM note_categories 
-		WHERE user_id = p_id AND name = p_name
+		WHERE user_id = p_user_id AND name = p_name
 	) THEN
-		PERFORM util_raise_error('PN002', p_name, v_account);
+		PERFORM util_raise_error('PN001', p_name, v_account);
 	END IF;
 
     INSERT INTO note_categories (user_id, name, description, is_default)
-    VALUES (p_id, p_name, p_description, p_is_default)
+    VALUES (p_user_id, p_name, p_description, p_is_default)
     RETURNING id INTO v_category_id;
 
     -- If the new item should be default, we need set the others as undefault.
     IF p_is_default THEN
         UPDATE note_categories
         SET is_default = FALSE
-        WHERE user_id = p_id AND id <> v_category_id;
+        WHERE user_id = p_user_id AND id <> v_category_id;
     END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_set_default_category(p_user_id UUID, p_category_id INTEGER)
+RETURNS VOID AS $$
+DECLARE
+	v_account VARCHAR;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_user_id;
+
+    IF NOT FOUND THEN
+	    PERFORM util_raise_error('PA007', p_user_id);
+    END IF;
+	
+	-- Check attribution
+	IF NOT EXISTS (
+	SELECT 1 FROM note_categories WHERE id = p_category_id AND user_id = p_user_id
+	) THEN
+	PERFORM util_raise_error('PN002', p_category_id, v_account);
+	END IF;
+
+	-- Change default category
+	UPDATE note_categories
+	SET is_default = (id = p_category_id)
+	WHERE user_id = p_user_id;
 END;
 $$ LANGUAGE plpgsql;

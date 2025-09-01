@@ -33,8 +33,8 @@ INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 ('PA011', 1, 'No password reset request found for account %s.'),
 
 
-('PN001', 2, 'Category %s does not belong to user %s.'),
-('PN002', 2, 'The category name %s" already exists for user %s.');
+('PN001', 2, 'The category name %s" already exists for user %s.'),
+('PN002', 2, 'Category %s does not belong to user %s.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,
@@ -552,7 +552,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_password(
-	p_id UUID,
+	p_user_id UUID,
 	p_password VARCHAR
 ) RETURNS void
 AS $$
@@ -562,15 +562,15 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('PA007', p_id);
+	    PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 	
     UPDATE users
 	SET password = crypt(p_password, gen_salt('bf'))
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
@@ -579,7 +579,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_name(
-	p_id UUID,
+	p_user_id UUID,
 	p_firstname VARCHAR,
 	p_lastname VARCHAR
 ) RETURNS void
@@ -590,10 +590,10 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-	    PERFORM util_raise_error('PA007', p_id);
+	    PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 	
     UPDATE user_profiles up
@@ -601,7 +601,7 @@ BEGIN
         lastname  = p_lastname
 	From users u
 	WHERE up.id = u.id
-		AND up.id = p_id;
+		AND up.id = p_user_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
@@ -610,7 +610,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_gender(
-    p_id UUID,
+    p_user_id UUID,
     p_gender INTEGER
 ) RETURNS void
 AS $$
@@ -620,17 +620,17 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA007', p_id);
+        PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 	
     UPDATE user_profiles up
     SET gender = p_gender
 	From users u
 	WHERE up.id = u.id
-		AND up.id = p_id;
+		AND up.id = p_user_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
@@ -639,7 +639,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_locale(
-    p_id UUID,
+    p_user_id UUID,
     p_locale INTEGER
 ) RETURNS void
 AS $$
@@ -649,17 +649,17 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA007', p_id);
+        PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 	
     UPDATE user_profiles up
     SET locale = p_locale
 	From users u
 	WHERE up.id = u.id
-		AND up.id = p_id;
+		AND up.id = p_user_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
@@ -668,7 +668,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_avatar(
-    p_id UUID,
+    p_user_id UUID,
     p_avatar VARCHAR
 ) RETURNS void
 AS $$
@@ -678,17 +678,17 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA007', p_id);
+        PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 	
     UPDATE user_profiles up
     SET avatar = p_avatar
 	From users u
 	WHERE up.id = u.id
-		AND up.id = p_id;
+		AND up.id = p_user_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
@@ -697,7 +697,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_set_signature(
-    p_id UUID,
+    p_user_id UUID,
     p_signature VARCHAR
 ) RETURNS void
 AS $$
@@ -707,17 +707,17 @@ BEGIN
     SELECT account
     INTO v_account
     FROM users
-    WHERE id = p_id;
+    WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-        PERFORM util_raise_error('PA007', p_id);
+        PERFORM util_raise_error('PA007', p_user_id);
     END IF;
 	
     UPDATE user_profiles up
     SET signature = p_signature
 	From users u
 	WHERE up.id = u.id
-		AND up.id = p_id;
+		AND up.id = p_user_id;
 
     IF NOT FOUND THEN
 	    PERFORM util_raise_error('PA006', v_account);
@@ -738,7 +738,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_query_user_by_id(
-    p_id UUID
+    p_user_id UUID
 ) RETURNS TABLE (
 	id UUID,
     account VARCHAR,
@@ -773,7 +773,7 @@ BEGIN
         up.signature
     FROM users u
     JOIN user_profiles up ON u.id = up.id
-    WHERE u.id = p_id;
+    WHERE u.id = p_user_id;
 END;
 $$ LANGUAGE plpgsql;
 
