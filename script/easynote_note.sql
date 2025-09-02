@@ -81,17 +81,15 @@ EXECUTE FUNCTION trgfn_collections_check_before_delete();
 
 CREATE TABLE notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     content TEXT NOT NULL,
     source_type INTEGER NOT NULL REFERENCES note_source_types(id),
-    collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE RESTRICT,
     
     meta JSONB DEFAULT '{}'::jsonb
 );
-CREATE INDEX IF NOT EXISTS idx_notes_user_time ON notes(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notes_collection ON notes(collection_id);
 CREATE INDEX IF NOT EXISTS idx_notes_source_type ON notes(source_type);
 
@@ -239,48 +237,48 @@ $$ LANGUAGE plpgsql;
 
 -- Notes
 CREATE OR REPLACE FUNCTION func_add_note(
-    p_user_id UUID,
     p_content TEXT,
-    p_source_type INTEGER,
-    p_collection_id UUID DEFAULT NULL
+    p_collection_id UUID,
+    p_source_type INTEGER
 ) RETURNS UUID AS $$
 DECLARE
-    v_account VARCHAR;
     v_note_id UUID;
-    v_target_collection_id UUID;
 BEGIN
-    SELECT account
-    INTO v_account
-    FROM users
-    WHERE id = p_user_id;
-
-    IF NOT FOUND THEN
-        PERFORM util_raise_error('PA007', p_user_id);
-    END IF;
-
     IF NOT EXISTS (
         SELECT 1 FROM note_source_types WHERE id = p_source_type
     ) THEN
         PERFORM util_raise_error('PN004', p_source_type);
     END IF;
 
-    IF p_collection_id IS NOT NULL THEN
-        IF NOT EXISTS (
-            SELECT 1 FROM collections WHERE id = p_collection_id AND user_id = p_user_id
-        ) THEN
-            PERFORM util_raise_error('PN002', p_collection_id, v_account);
-        END IF;
-
-        v_target_collection_id := p_collection_id;
-    ELSE
-        v_target_collection_id := func_get_default_collection(p_user_id);
-    END IF;
-
-    -- 插入 note
-    INSERT INTO notes (user_id, content, source_type, collection_id)
-    VALUES (p_user_id, p_content, p_source_type, v_target_collection_id)
+    INSERT INTO notes (content, source_type, collection_id)
+    VALUES (p_content, p_source_type, p_collection_id)
     RETURNING id INTO v_note_id;
 
     RETURN v_note_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_update_note_meta(
+    p_note_id UUID,
+    p_meta JSONB
+)
+RETURNS VOID AS $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    -- 检查 note 是否存在
+    SELECT user_id INTO v_user_id
+    FROM notes
+    WHERE id = p_note_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('PN005', p_note_id); -- PN005: Note not found
+    END IF;
+
+    -- 更新 meta 字段
+    UPDATE notes
+    SET meta = p_meta,
+        updated_at = now()
+    WHERE id = p_note_id;
 END;
 $$ LANGUAGE plpgsql;

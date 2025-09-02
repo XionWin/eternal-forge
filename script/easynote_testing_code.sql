@@ -81,10 +81,10 @@ SELECT * FROM func_get_default_collection((SELECT id FROM users WHERE account = 
 
 
 SELECT * FROM func_add_note(
-	(SELECT id FROM users WHERE account = 'puppywin@163.com'),
 	'First note',
-	1,
-	NULL);
+	func_get_default_collection((SELECT id FROM users WHERE account = 'puppywin@163.com')),
+	1
+);
 
 SELECT * FROM note_source_types;
 SELECT * FROM collections;
