@@ -76,5 +76,16 @@ SELECT * FROM func_query_user_by_account('puppywin@163.com');
 
 SELECT version();
 
-
+-- Collections
 SELECT * FROM func_get_default_collection((SELECT id FROM users WHERE account = 'puppywin@163.com'));
+
+
+SELECT * FROM func_add_note(
+	(SELECT id FROM users WHERE account = 'puppywin@163.com'),
+	'First note',
+	1,
+	NULL);
+
+SELECT * FROM note_source_types;
+SELECT * FROM collections;
+SELECT * FROM notes;

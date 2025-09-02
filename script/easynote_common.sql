@@ -35,7 +35,8 @@ INSERT INTO error_codes (errcode, param_count, message_template) VALUES
 
 ('PN001', 2, 'The category name %s" already exists for user %s.'),
 ('PN002', 2, 'Category %s does not belong to user %s.'),
-('PN003', 2, 'Collection %s of user %s cannot be deleted because it still contains notes.');
+('PN003', 2, 'Collection %s of user %s cannot be deleted because it still contains notes.'),
+('PN004', 1, 'Source type %s is invalid.');
 
 CREATE TABLE genders (
     id INTEGER PRIMARY KEY,

@@ -13,7 +13,7 @@ INSERT INTO note_source_types (id, name, description) VALUES
 (2, 'Manual', 'Manually entered by user');
 
 CREATE TABLE collections (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -87,7 +87,7 @@ CREATE TABLE notes (
 
     content TEXT NOT NULL,
     source_type INTEGER NOT NULL REFERENCES note_source_types(id),
-    collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE RESTRICT,
+    collection_id UUID NOT NULL REFERENCES collections(id) ON DELETE RESTRICT,
     
     meta JSONB DEFAULT '{}'::jsonb
 );
@@ -111,7 +111,7 @@ EXECUTE FUNCTION trgfn_notes_set_updated_at();
 CREATE OR REPLACE FUNCTION trgfn_notes_set_default_collection()
 RETURNS TRIGGER AS $$
 DECLARE
-  v_default_collection_id INTEGER;
+  v_default_collection_id UUID;
 BEGIN
   IF NEW.collection_id IS NULL THEN
   	SELECT id INTO v_default_collection_id
@@ -135,15 +135,16 @@ BEFORE INSERT ON notes
 FOR EACH ROW
 EXECUTE FUNCTION trgfn_notes_set_default_collection();
 
+-- Collections
 CREATE OR REPLACE FUNCTION func_add_collection(
     p_user_id UUID,
     p_name VARCHAR,
     p_description TEXT,
     p_is_active BOOLEAN
-) RETURNS INTEGER AS $$
+) RETURNS UUID AS $$
 DECLARE
     v_account VARCHAR;
-    v_collection_id INTEGER;
+    v_collection_id UUID;
 BEGIN
     SELECT account
     INTO v_account
@@ -178,7 +179,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE OR REPLACE FUNCTION func_change_default_collection(p_user_id UUID, p_collection_id INTEGER)
+CREATE OR REPLACE FUNCTION func_change_default_collection(p_user_id UUID, p_collection_id UUID)
 RETURNS VOID AS $$
 DECLARE
     v_account VARCHAR;
@@ -206,12 +207,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-
 CREATE OR REPLACE FUNCTION func_get_default_collection(p_user_id UUID)
-RETURNS INTEGER AS $$
+RETURNS UUID AS $$
 DECLARE
     v_account VARCHAR;
-    v_default_collection_id INTEGER;
+    v_default_collection_id UUID;
 BEGIN
     SELECT account
     INTO v_account
@@ -233,5 +233,54 @@ BEGIN
     END IF;
 
     RETURN v_default_collection_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Notes
+CREATE OR REPLACE FUNCTION func_add_note(
+    p_user_id UUID,
+    p_content TEXT,
+    p_source_type INTEGER,
+    p_collection_id UUID DEFAULT NULL
+) RETURNS UUID AS $$
+DECLARE
+    v_account VARCHAR;
+    v_note_id UUID;
+    v_target_collection_id UUID;
+BEGIN
+    SELECT account
+    INTO v_account
+    FROM users
+    WHERE id = p_user_id;
+
+    IF NOT FOUND THEN
+        PERFORM util_raise_error('PA007', p_user_id);
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM note_source_types WHERE id = p_source_type
+    ) THEN
+        PERFORM util_raise_error('PN004', p_source_type);
+    END IF;
+
+    IF p_collection_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM collections WHERE id = p_collection_id AND user_id = p_user_id
+        ) THEN
+            PERFORM util_raise_error('PN002', p_collection_id, v_account);
+        END IF;
+
+        v_target_collection_id := p_collection_id;
+    ELSE
+        v_target_collection_id := func_get_default_collection(p_user_id);
+    END IF;
+
+    -- 插入 note
+    INSERT INTO notes (user_id, content, source_type, collection_id)
+    VALUES (p_user_id, p_content, p_source_type, v_target_collection_id)
+    RETURNING id INTO v_note_id;
+
+    RETURN v_note_id;
 END;
 $$ LANGUAGE plpgsql;
