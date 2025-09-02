@@ -126,7 +126,7 @@ CREATE TABLE pending_users (
 	CONSTRAINT fk_gender FOREIGN KEY (gender) REFERENCES genders(id),
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
-CREATE OR REPLACE FUNCTION trgfn_pending_users_set_updated_at()
+CREATE OR REPLACE FUNCTION trgfn_pending_users_updated_at()
 RETURNS TRIGGER AS $$
 DECLARE
     excluded_columns TEXT[] := ARRAY['last_login_at'];
@@ -137,11 +137,11 @@ BEGIN
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_pending_users_set_updated_at_on_update ON pending_users;
-CREATE TRIGGER trg_pending_users_set_updated_at_on_update
+DROP TRIGGER IF EXISTS trg_pending_users_updated_at_on_update ON pending_users;
+CREATE TRIGGER trg_pending_users_updated_at_on_update
 BEFORE UPDATE ON pending_users
 FOR EACH ROW
-EXECUTE FUNCTION trgfn_pending_users_set_updated_at();
+EXECUTE FUNCTION trgfn_pending_users_updated_at();
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -155,7 +155,7 @@ CREATE TABLE users (
     CONSTRAINT fk_users_status FOREIGN KEY (status) REFERENCES user_statuses(id),
     CONSTRAINT fk_users_role FOREIGN KEY (role) REFERENCES roles(id)
 );
-CREATE OR REPLACE FUNCTION trgfn_users_set_updated_at()
+CREATE OR REPLACE FUNCTION trgfn_users_updated_at()
 RETURNS TRIGGER AS $$
 DECLARE
     excluded_columns TEXT[] := ARRAY['last_login_at'];
@@ -166,11 +166,11 @@ BEGIN
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_users_set_updated_at_on_update ON users;
-CREATE TRIGGER trg_users_set_updated_at_on_update
+DROP TRIGGER IF EXISTS trg_users_updated_at_on_update ON users;
+CREATE TRIGGER trg_users_updated_at_on_update
 BEFORE UPDATE ON users
 FOR EACH ROW
-EXECUTE FUNCTION trgfn_users_set_updated_at();
+EXECUTE FUNCTION trgfn_users_updated_at();
 
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY,
@@ -194,18 +194,18 @@ CREATE TABLE pending_reset_passwords (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 	CONSTRAINT fk_pending_reset_passwords_account FOREIGN KEY (id) REFERENCES users(id)
 );
-CREATE OR REPLACE FUNCTION trgfn_pending_reset_passwords_set_updated_at()
+CREATE OR REPLACE FUNCTION trgfn_pending_reset_passwords_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_pending_reset_passwords_set_updated_at_on_update ON pending_reset_passwords;
-CREATE TRIGGER trg_pending_reset_passwords_set_updated_at_on_update
+DROP TRIGGER IF EXISTS trg_pending_reset_passwords_updated_at_on_update ON pending_reset_passwords;
+CREATE TRIGGER trg_pending_reset_passwords_updated_at_on_update
 BEFORE UPDATE ON pending_reset_passwords
 FOR EACH ROW
-EXECUTE FUNCTION trgfn_pending_reset_passwords_set_updated_at();
+EXECUTE FUNCTION trgfn_pending_reset_passwords_updated_at();
 
 CREATE OR REPLACE FUNCTION util_raise_error(
     p_errcode TEXT,
