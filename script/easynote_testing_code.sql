@@ -75,3 +75,6 @@ SELECT * FROM func_query_user_by_id(
 SELECT * FROM func_query_user_by_account('puppywin@163.com');
 
 SELECT version();
+
+
+SELECT * FROM func_get_default_collection((SELECT id FROM users WHERE account = 'puppywin@163.com'));

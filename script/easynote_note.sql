@@ -51,9 +51,33 @@ EXECUTE FUNCTION trgfn_collections_set_active();
 
 DROP TRIGGER IF EXISTS trg_collections_set_active_on_update ON collections;
 CREATE TRIGGER trg_collections_set_active_on_update
-AFTER UPDATE OF is_active, user_id ON collections
+BEFORE UPDATE OF is_active, user_id ON collections
 FOR EACH ROW
 EXECUTE FUNCTION trgfn_collections_set_active();
+
+CREATE OR REPLACE FUNCTION trgfn_collections_check_before_delete()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_note_count INTEGER;
+    v_account VARCHAR;
+BEGIN
+    IF EXISTS (SELECT 1 FROM notes WHERE collection_id = OLD.id) THEN
+	    SELECT account INTO v_account
+	    FROM users
+	    WHERE id = OLD.user_id;
+	
+	    PERFORM util_raise_error('PN003', OLD.name, v_account);
+	END IF;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_collections_check_before_delete ON collections;
+CREATE TRIGGER trg_collections_check_before_delete
+BEFORE DELETE ON collections
+FOR EACH ROW
+EXECUTE FUNCTION trgfn_collections_check_before_delete();
 
 CREATE TABLE notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -63,13 +87,12 @@ CREATE TABLE notes (
 
     content TEXT NOT NULL,
     source_type INTEGER NOT NULL REFERENCES note_source_types(id),
-
-    collection INTEGER NOT NULL REFERENCES collections(id) ON DELETE SET NULL,
+    collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE RESTRICT,
     
     meta JSONB DEFAULT '{}'::jsonb
 );
 CREATE INDEX IF NOT EXISTS idx_notes_user_time ON notes(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notes_collection ON notes(collection);
+CREATE INDEX IF NOT EXISTS idx_notes_collection ON notes(collection_id);
 CREATE INDEX IF NOT EXISTS idx_notes_source_type ON notes(source_type);
 
 CREATE OR REPLACE FUNCTION trgfn_notes_set_updated_at()
@@ -91,16 +114,16 @@ DECLARE
   v_default_collection_id INTEGER;
 BEGIN
   IF NEW.collection_id IS NULL THEN
-    SELECT id INTO v_default_collection_id
-    FROM collections
-    WHERE user_id = NEW.user_id
-      AND is_active = TRUE
-    LIMIT 1;
+  	SELECT id INTO v_default_collection_id
+	FROM collections
+	WHERE user_id = NEW.user_id
+	  AND is_active = TRUE
+	LIMIT 1;
 
-    IF FOUND THEN
-      NEW.collection_id := v_default_collection_id;
-    END IF;
-    -- If current user has no any collection, keep the NULL value.
+	IF v_default_collection_id IS NULL THEN
+	    v_default_collection_id := func_get_default_collection(NEW.user_id);
+	END IF;
+	NEW.collection_id := v_default_collection_id;
   END IF;
   RETURN NEW;
 END;
@@ -112,13 +135,12 @@ BEFORE INSERT ON notes
 FOR EACH ROW
 EXECUTE FUNCTION trgfn_notes_set_default_collection();
 
-
 CREATE OR REPLACE FUNCTION func_add_collection(
     p_user_id UUID,
     p_name VARCHAR,
     p_description TEXT,
     p_is_active BOOLEAN
-) RETURNS VOID AS $$
+) RETURNS INTEGER AS $$
 DECLARE
     v_account VARCHAR;
     v_collection_id INTEGER;
@@ -150,10 +172,13 @@ BEGIN
         SET is_active = FALSE
         WHERE user_id = p_user_id AND id <> v_collection_id;
     END IF;
+
+	RETURN v_collection_id;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION func_set_default_collection(p_user_id UUID, p_collection_id INTEGER)
+
+CREATE OR REPLACE FUNCTION func_change_default_collection(p_user_id UUID, p_collection_id INTEGER)
 RETURNS VOID AS $$
 DECLARE
     v_account VARCHAR;
@@ -203,10 +228,8 @@ BEGIN
       AND is_active = TRUE
     LIMIT 1;
 
-    IF NOT FOUND THEN
-        INSERT INTO collections (user_id, name, description, is_active)
-        VALUES (p_user_id, 'Default', 'Default collection for user', TRUE)
-        RETURNING id INTO v_default_collection_id;
+    IF v_default_collection_id IS NULL THEN
+        v_default_collection_id := func_add_collection(p_user_id, 'Default', 'Default collection for user', TRUE);
     END IF;
 
     RETURN v_default_collection_id;
