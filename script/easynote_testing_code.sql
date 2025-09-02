@@ -77,13 +77,15 @@ SELECT * FROM func_query_user_by_account('puppywin@163.com');
 SELECT version();
 
 -- Collections
-SELECT * FROM func_get_default_collection((SELECT id FROM users WHERE account = 'puppywin@163.com'));
-
-
 SELECT * FROM func_add_note(
 	'First note',
 	func_get_default_collection((SELECT id FROM users WHERE account = 'puppywin@163.com')),
 	1
+);
+
+SELECT func_update_note_meta(
+    (SELECT id FROM notes LIMIT 1),
+    '{}'::jsonb
 );
 
 SELECT * FROM note_source_types;

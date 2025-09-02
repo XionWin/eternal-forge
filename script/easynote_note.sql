@@ -10,7 +10,7 @@ CREATE TABLE note_source_types (
 INSERT INTO note_source_types (id, name, description) VALUES
 (0, 'Unknown', 'Unknown source'),
 (1, 'Web', 'Collected from website'),
-(2, 'Manual', 'Manually entered by user');
+(2, 'Manual', 'Manually added by user');
 
 CREATE TABLE collections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -262,23 +262,19 @@ CREATE OR REPLACE FUNCTION func_update_note_meta(
     p_note_id UUID,
     p_meta JSONB
 )
-RETURNS VOID AS $$
-DECLARE
-    v_user_id UUID;
+RETURNS VOID
+AS $$
 BEGIN
-    -- 检查 note 是否存在
-    SELECT user_id INTO v_user_id
-    FROM notes
-    WHERE id = p_note_id;
-
-    IF NOT FOUND THEN
-        PERFORM util_raise_error('PN005', p_note_id); -- PN005: Note not found
+    IF NOT EXISTS (
+		SELECT 1
+	    FROM notes
+	    WHERE id = p_note_id
+	) THEN
+        PERFORM util_raise_error('PN005', p_note_id::text);
     END IF;
 
-    -- 更新 meta 字段
     UPDATE notes
-    SET meta = p_meta,
-        updated_at = now()
+    SET meta = p_meta
     WHERE id = p_note_id;
 END;
 $$ LANGUAGE plpgsql;
