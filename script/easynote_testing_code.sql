@@ -85,7 +85,7 @@ SELECT * FROM func_add_note(
 
 SELECT func_update_note_meta(
     (SELECT id FROM notes LIMIT 1),
-    '{}'::jsonb
+    '{"test": "123"}'::jsonb
 );
 
 SELECT * FROM note_source_types;

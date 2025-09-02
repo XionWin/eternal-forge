@@ -239,7 +239,8 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION func_add_note(
     p_content TEXT,
     p_collection_id UUID,
-    p_source_type INTEGER
+    p_source_type INTEGER,
+	p_meta JSONB
 ) RETURNS UUID AS $$
 DECLARE
     v_note_id UUID;
@@ -250,9 +251,28 @@ BEGIN
         PERFORM util_raise_error('PN004', p_source_type);
     END IF;
 
-    INSERT INTO notes (content, source_type, collection_id)
-    VALUES (p_content, p_source_type, p_collection_id)
-    RETURNING id INTO v_note_id;
+	IF p_meta IS NULL THEN
+	    INSERT INTO notes (content, source_type, collection_id)
+	    VALUES (p_content, p_source_type, p_collection_id)
+	    RETURNING id INTO v_note_id;
+	ELSE
+	    INSERT INTO notes (content, source_type, collection_id, meta)
+	    VALUES (p_content, p_source_type, p_collection_id, p_meta)
+	    RETURNING id INTO v_note_id;
+	END IF;
+
+    RETURN v_note_id;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION func_add_note(
+    p_content TEXT,
+    p_collection_id UUID,
+    p_source_type INTEGER
+) RETURNS UUID AS $$
+DECLARE
+    v_note_id UUID;
+BEGIN
+	v_note_id := func_add_note(p_content, p_collection_id, p_source_type, NULL);
 
     RETURN v_note_id;
 END;
@@ -275,6 +295,23 @@ BEGIN
 
     UPDATE notes
     SET meta = p_meta
+    WHERE id = p_note_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION func_delete_note(
+    p_note_id UUID
+)
+RETURNS VOID
+AS $$
+BEGIN
+    IF NOT EXISTS (
+		SELECT 1 FROM notes WHERE id = p_note_id
+	) THEN
+        PERFORM util_raise_error('PN005', p_note_id);
+    END IF;
+
+    DELETE FROM notes
     WHERE id = p_note_id;
 END;
 $$ LANGUAGE plpgsql;
