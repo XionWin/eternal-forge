@@ -127,7 +127,8 @@ CREATE TABLE pending_users (
 	CONSTRAINT fk_locale FOREIGN KEY (locale) REFERENCES locales(id)
 );
 CREATE OR REPLACE FUNCTION trgfn_pending_users_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+AS $$
 DECLARE
     excluded_columns TEXT[] := ARRAY['last_login_at'];
 BEGIN
@@ -156,7 +157,8 @@ CREATE TABLE users (
     CONSTRAINT fk_users_role FOREIGN KEY (role) REFERENCES roles(id)
 );
 CREATE OR REPLACE FUNCTION trgfn_users_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+AS $$
 DECLARE
     excluded_columns TEXT[] := ARRAY['last_login_at'];
 BEGIN
@@ -195,7 +197,8 @@ CREATE TABLE pending_reset_passwords (
 	CONSTRAINT fk_pending_reset_passwords_account FOREIGN KEY (id) REFERENCES users(id)
 );
 CREATE OR REPLACE FUNCTION trgfn_pending_reset_passwords_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
@@ -210,7 +213,8 @@ EXECUTE FUNCTION trgfn_pending_reset_passwords_updated_at();
 CREATE OR REPLACE FUNCTION util_raise_error(
     p_errcode TEXT,
     VARIADIC p_args TEXT[]
-) RETURNS void AS $$
+) RETURNS void
+AS $$
 DECLARE
     v_template TEXT;
     v_param_count INT;
@@ -797,7 +801,8 @@ CREATE OR REPLACE FUNCTION func_query_user_by_account(
     locale INTEGER,
     avatar VARCHAR,
     signature VARCHAR
-) AS $$
+)
+AS $$
 BEGIN
     RETURN QUERY
     SELECT

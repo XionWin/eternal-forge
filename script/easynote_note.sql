@@ -56,7 +56,8 @@ FOR EACH ROW
 EXECUTE FUNCTION trgfn_collections_set_active();
 
 CREATE OR REPLACE FUNCTION trgfn_collections_check_before_delete()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+AS $$
 DECLARE
     v_note_count INTEGER;
     v_account VARCHAR;
@@ -94,7 +95,8 @@ CREATE INDEX IF NOT EXISTS idx_notes_collection ON notes(collection_id);
 CREATE INDEX IF NOT EXISTS idx_notes_source_type ON notes(source_type);
 
 CREATE OR REPLACE FUNCTION trgfn_notes_set_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
@@ -107,7 +109,8 @@ FOR EACH ROW
 EXECUTE FUNCTION trgfn_notes_set_updated_at();
 
 CREATE OR REPLACE FUNCTION trgfn_notes_set_default_collection()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+AS $$
 DECLARE
   v_default_collection_id UUID;
 BEGIN
@@ -139,7 +142,8 @@ CREATE OR REPLACE FUNCTION func_add_collection(
     p_name VARCHAR,
     p_description TEXT,
     p_is_active BOOLEAN
-) RETURNS UUID AS $$
+) RETURNS UUID
+AS $$
 DECLARE
     v_account VARCHAR;
     v_collection_id UUID;
@@ -178,7 +182,8 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE OR REPLACE FUNCTION func_change_default_collection(p_user_id UUID, p_collection_id UUID)
-RETURNS VOID AS $$
+RETURNS VOID
+AS $$
 DECLARE
     v_account VARCHAR;
 BEGIN
@@ -206,7 +211,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION func_get_default_collection(p_user_id UUID)
-RETURNS UUID AS $$
+RETURNS UUID
+AS $$
 DECLARE
     v_account VARCHAR;
     v_default_collection_id UUID;
@@ -241,7 +247,8 @@ CREATE OR REPLACE FUNCTION func_add_note(
     p_collection_id UUID,
     p_source_type INTEGER,
 	p_meta JSONB
-) RETURNS UUID AS $$
+) RETURNS UUID
+AS $$
 DECLARE
     v_note_id UUID;
 BEGIN
@@ -268,7 +275,8 @@ CREATE OR REPLACE FUNCTION func_add_note(
     p_content TEXT,
     p_collection_id UUID,
     p_source_type INTEGER
-) RETURNS UUID AS $$
+) RETURNS UUID
+AS $$
 DECLARE
     v_note_id UUID;
 BEGIN
